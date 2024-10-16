@@ -1,73 +1,59 @@
 # trf/trf.py
-from typing import List, Dict, Any, Callable, Mapping
-from collections import OrderedDict
+import glob
+import importlib.resources
 import logging
-from logging.handlers import TimedRotatingFileHandler
-from prompt_toolkit import Application
-from prompt_toolkit.layout import Layout
-from prompt_toolkit.layout.containers import (
-    HSplit,
-    VSplit,
-    Window,
-    DynamicContainer,
-    WindowAlign,
-    ConditionalContainer,
-)
-from prompt_toolkit.layout.dimension import D
-from prompt_toolkit.layout.controls import FormattedTextControl
-from prompt_toolkit.keys import Keys
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.filters import Condition
-from prompt_toolkit.styles import Style
-from prompt_toolkit.styles.named_colors import NAMED_COLORS
-from prompt_toolkit.lexers import Lexer
-from prompt_toolkit.search import start_search, SearchDirection
-from datetime import datetime, timedelta, date
-import time
-from prompt_toolkit.widgets import (
-    TextArea,
-    Frame,
-    SearchToolbar,
-    MenuContainer,
-    MenuItem,
-    HorizontalLine,
-    Label
-)
-from prompt_toolkit.key_binding.bindings.focus import (
-    focus_next,
-    focus_previous,
-)
-from prompt_toolkit.application.current import get_app
-from prompt_toolkit.key_binding import KeyBindings
-from io import StringIO
-from dateutil.parser import parse, parserinfo
-import string
-import shutil
-import threading
-import traceback
-    # initialize the tracker manager as a singleton instance
-import textwrap
-import sys
 import os
 import re
-from prompt_toolkit.application import Application
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.widgets import TextArea
-from prompt_toolkit.layout import Layout, Float, FloatContainer, Window
-import logging
-from persistent import Persistent
-import pyperclip
-import importlib.resources
-import glob
+import shutil
+import string
+import sys
+import textwrap
+import threading
+import time
+import traceback
+from collections import OrderedDict
+from datetime import date, datetime, timedelta
+from io import StringIO
+from logging.handlers import TimedRotatingFileHandler
+from typing import Any, Callable, Dict, List, Mapping
+
 import lorem
+import pyperclip
+import transaction
+import ZODB
+import ZODB.FileStorage
+from dateutil.parser import parse, parserinfo
 from lorem.text import TextLorem
-from .__version__ import version
-from . import trf_home, log_level, restore, backup_dir, db_path
-from .backup import backup_to_zip, rotate_backups, restore_from_zip
+from persistent import Persistent
+from prompt_toolkit import Application
+from prompt_toolkit.application import Application
+from prompt_toolkit.application.current import get_app
+from prompt_toolkit.filters import Condition
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.key_binding.bindings.focus import (focus_next,
+                                                       focus_previous)
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.layout import Float, FloatContainer, Layout, Window
+from prompt_toolkit.layout.containers import (ConditionalContainer,
+                                              DynamicContainer, HSplit, VSplit,
+                                              Window, WindowAlign)
+from prompt_toolkit.layout.controls import FormattedTextControl
+from prompt_toolkit.layout.dimension import D
+from prompt_toolkit.lexers import Lexer
+from prompt_toolkit.search import SearchDirection, start_search
+from prompt_toolkit.styles import Style
+from prompt_toolkit.styles.named_colors import NAMED_COLORS
+from prompt_toolkit.widgets import (Frame, HorizontalLine, Label,
+                                    MenuContainer, MenuItem, SearchToolbar,
+                                    TextArea)
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
-import ZODB, ZODB.FileStorage
-import transaction
+
+from . import backup_dir, db_path, log_level, restore, trf_home
+from .__version__ import version
+from .backup import backup_to_zip, restore_from_zip, rotate_backups
+
+    # initialize the tracker manager as a singleton instance
 
 freq = 12
 mode = 'main'
@@ -332,6 +318,7 @@ class Tracker(Persistent):
             return '0m' if short else '+0m'
         total_seconds = abs(total_seconds)
         try:
+            ret = ""
             until = []
             days = hours = minutes = 0
             if total_seconds:
@@ -527,7 +514,7 @@ class Tracker(Persistent):
                 num_intervals=0, 
                 average_interval=timedelta(minutes=0), 
                 last_interval=timedelta(minutes=0), 
-                spread=timedelta(minutes=0), 
+                spread=timedelta(minutes=0), 
                 next_expected_completion=None,
                 early=None, 
                 timely=None, 
@@ -794,18 +781,18 @@ class TrackerManager:
         self.refresh_info()
 
     def refresh_info(self):
-        for k, v in self.trackers.items():
+        for _, v in self.trackers.items():
             v.compute_info()
         logger.info("Refreshed tracker info.")
 
-    def set_setting(self, key, value):
-
-        if key in self.settings:
-            self.settings[key] = value
-            self.zodb_root[0] = self.settings  # Update the ZODB storage
-            self.transaction.commit()
-        else:
-            logger.error(f"Setting '{key}' not found.")
+    # def set_setting(self, key, value):
+    #     if key in self.settings:
+    #         self.settings[key] = value
+    #         # self.zodb_root[0] = self.settings  # Update the ZODB storage
+    #         self.root[0] = self.settings  # Update the ZODB storage
+    #         self.transaction.commit()
+    #     else:
+    #         logger.error(f"Setting '{key}' not found.")
 
     def get_setting(self, key):
         return self.settings.get(key, None)
@@ -856,7 +843,7 @@ class TrackerManager:
         display_message(f"{self.trackers[doc_id].get_tracker_info()}", 'info')
 
 
-    def get_tracker_data(self, doc_id: int = None):
+    def get_tracker_data(self, doc_id: int = 0):
         if doc_id is None:
             # logger.debug("data for all trackers:")
             for k, v in self.trackers.items():
@@ -2060,7 +2047,8 @@ menu_items=[
 
         ]
     ),
-    Label(text="trf: task record and forecast", style="class:menu-title"),
+    # Label(text="trf: task record and forecast", style="class:menu-title"),
+    Label(text="task tracker", style="class:menu-title"),
 ]
 
 # Create a MenuContainer using the custom menu bar

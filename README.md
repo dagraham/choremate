@@ -2,7 +2,7 @@
 <div style="display: flex; align-items: center;">
   <div style="flex: 1;">
 <H1>trf-dgraham</H1>
-<b>tracker record and forecast</b> is a simple application for tracking the sequence of occasions on which a task is completed and predicting when the next completion will likely be needed.
+<p><b>tracker record and forecast</b> is a simple application for tracking the sequence of occasions on which a task is completed and predicting when the next completion will likely be needed.
   </div>
   <div style="flex: 0; padding-left: 10px; padding-right: 6px;">
     <img src="tracker.png" alt="" style="max-width: 140px;">
@@ -34,7 +34,7 @@ The recorded history of completions is thus a list of (datetime, timedelta) pair
 
 Here is an illustration of the "inspect" display for the "fill bird feeders" tracker showing a history of three completions together with the corresponding two intervals and other related calculations:
 
-![inspect view](tracker_inspect.png)
+![](tracker_inspect.png)
 
 Datetimes are reported using 6 digits for the date and 4 digits for the 24-hour time separated by `T`: `yymmddTHHMM`.  Timedeltas are reported as integer numbers of d (days), h (hours) and m (minutes).
 
@@ -55,7 +55,7 @@ where the value of η is set by the user. With `η = 3`, e.g., at least 1-1/3^2 
 
 The list view reflects these calculations:
 
-![list view](tracker_list.png)
+![](tracker_list.png)
 
 In this view, the `tag` column presents a convenient way of selecting a tracker for use in another command. E.g., pressing `c`  would move the cursor to the row corresponding to tag `c`. Because only lower-case letters are used for tags, only 26 tags can be displayed on a single page in list view. When there are more than 26 trackers, the list view is divided into multiple pages with the left and right cursor keys used to navigate between pages. An option is to press the integer corresponding to a page number and immediately move the cursor to the first row of that page. Only a single digit can be used with this mechanism but this still allows 9 * 26 = 234 trackers to be quickly selected using at most 2 key presses.
 

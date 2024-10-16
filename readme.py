@@ -180,15 +180,15 @@ image_replacements = {
 <div style="display: flex; align-items: center;">
   <div style="flex: 1;">
 <H1>trf-dgraham</H1>
-<b>tracker record and forecast</b> is a simple application for tracking the sequence of occasions on which a task is completed and predicting when the next completion will likely be needed.
+<p><b>tracker record and forecast</b> is a simple application for tracking the sequence of occasions on which a task is completed and predicting when the next completion will likely be needed.
   </div>
   <div style="flex: 0; padding-left: 10px; padding-right: 6px;">
     <img src="tracker.png" alt="" style="max-width: 140px;">
   </div>
 </div>
 """,
-    "inspect": "![inspect view](tracker_inspect.png)",
-    "list": "![list view](tracker_list.png)",
+    "inspect": "![](tracker_inspect.png)",
+    "list": "![](tracker_list.png)",
 }
 
 # ┌ ┬ ┐ ┏ ━ ┓ ┗ ━ ┛ ┃
