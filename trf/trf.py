@@ -811,13 +811,22 @@ class TrackerManager:
         logger.info(f"Tracker '{name}' added with ID {doc_id}")
         return doc_id
 
+    def get_tracker_from_tag(self, tag: str):
+        pagetag = (self.active_page, tag)
+        if pagetag not in self.tag_to_id:
+            return None
+        self.selected_id = self.tag_to_id[pagetag]
+        self.selected_tracker = self.trackers[self.tag_to_id[pagetag]]
+        self.selected_row = pagetag
+        return self.trackers[self.tag_to_id[pagetag]]
+
+
     def rename_tracker(self, doc_id: int, new_name: str):
         ok, msg = self.trackers[doc_id].rename(new_name)
         if not ok:
             display_message(msg, 'error')
             return
         display_message(f"{self.trackers[doc_id].get_tracker_info()}", 'info')
-
 
     def record_completion(self, doc_id: int, comp: tuple[datetime, timedelta]):
         # dt will be a datetime
@@ -835,13 +844,13 @@ class TrackerManager:
             return
         display_message(f"{self.trackers[doc_id].get_tracker_info()}", 'info')
 
+
     def remove_completions(self, doc_id: int):
         ok, msg = self.trackers[doc_id].remove_completions()
         if not ok:
             display_message(msg, 'error')
             return
         display_message(f"{self.trackers[doc_id].get_tracker_info()}", 'info')
-
 
     def get_tracker_data(self, doc_id: int = 0):
         if doc_id is None:
@@ -957,9 +966,6 @@ class TrackerManager:
                 display_area.buffer.document.translate_row_col_to_index(0, 0)
             )
 
-    def get_active_page(self):
-        return self.active_page
-
     def next_page(self):
         # new_page = min(self.get_active_page() + 1, self.num_pages - 1)
         self.set_active_page(self.get_active_page() + 1)
@@ -974,27 +980,21 @@ class TrackerManager:
 
         logger.debug(f"previous page: {self.active_page = }")
 
+    def get_active_page(self):
+        return self.active_page
+
     def set_page(self, page_num):
         self.set_active_page(page_num)
         self.selected_id = None
         self.selected_row = (self.active_page, 0)
         logger.debug(f"set page: {self.active_page = }")
 
+
     def first_page(self):
         self.set_active_page(0)
         self.selected_id = None
         self.selected_row = (self.active_page, 0)
         logger.debug(f"first page: {self.selected_row = }")
-
-
-    def get_tracker_from_tag(self, tag: str):
-        pagetag = (self.active_page, tag)
-        if pagetag not in self.tag_to_id:
-            return None
-        self.selected_id = self.tag_to_id[pagetag]
-        self.selected_tracker = self.trackers[self.tag_to_id[pagetag]]
-        self.selected_row = pagetag
-        return self.trackers[self.tag_to_id[pagetag]]
 
     def get_tracker_from_row(self):
         row = display_area.document.cursor_position_row
@@ -1220,7 +1220,7 @@ class TrackerLexer(Lexer):
             if is_current_row(line_number) and line_number > 0:
                 # Apply style to the whole line with a background for the current line
                 list_style = highlight_style
-                line = f"{line:<{width}}"
+                line = f"{line:<{width+1}}"
             else:
                 list_style = tracker_style
                 # Apply no special style for other lines
