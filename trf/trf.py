@@ -25,7 +25,7 @@ import ZODB.FileStorage
 from dateutil.parser import parse, parserinfo
 from lorem.text import TextLorem
 from persistent import Persistent
-from prompt_toolkit import Application
+# from prompt_toolkit import Application
 from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.filters import Condition
@@ -1213,11 +1213,11 @@ class TrackerLexer(Lexer):
         active_page = tracker_manager.active_page
         lines = document.lines
         now = datetime.now().strftime("%y-%m-%d")
-        width = shutil.get_terminal_size()[0] - 1
+        width = shutil.get_terminal_size()[0] 
         def get_line_tokens(line_number):
             line = lines[line_number]
             tokens = []
-            if is_current_row(line_number):
+            if is_current_row(line_number) and line_number > 0:
                 # Apply style to the whole line with a background for the current line
                 list_style = highlight_style
                 line = f"{line:<{width}}"
@@ -1566,8 +1566,6 @@ def set_float(content: str, title: str):
 
 
 float = None
-# @kb.add('c-space')  # Control + Space
-# @kb.add('.')  # Control + Space
 def toggle_shortcuts(event=None):
     logger.debug(f"toggle_shortcuts: {float_visible = }")
     # Toggle the visibility flag
@@ -2036,7 +2034,7 @@ def set_bindings():
 
 menu_items=[
     MenuItem(
-        '☰',
+        "☰ task tracker",
         children=[
             MenuItem('F1 toggle menu', handler=menu),
             MenuItem('F2 about trf', handler=do_about),
@@ -2048,7 +2046,7 @@ menu_items=[
         ]
     ),
     # Label(text="trf: task record and forecast", style="class:menu-title"),
-    Label(text="task tracker", style="class:menu-title"),
+    # Label(text="☰ task tracker", style="class:menu-title"),
 ]
 
 # Create a MenuContainer using the custom menu bar
@@ -2111,7 +2109,6 @@ def search_forward(event):
     set_mode('search')
     start_search(display_area.control)
 
-# @kb.add('?')
 @kb.add('?', filter=Condition(lambda: mode not in ['new', 'complete', 'rename', 'history', 'settings']))
 def search_backward(event):
     # Your custom logic to set search mode
