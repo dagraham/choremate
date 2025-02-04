@@ -910,10 +910,12 @@ class TrackerManager:
             interval = "interval"
 
         set_pages(page_banner(self.active_page + 1, self.num_pages, sort))
-        banner = f"{ZWNJ} tag     next      {interval}     last        subject\n"
+        # banner = f"{ZWNJ} tag     next      {interval}     last        subject\n"
+        sub = "subject"
+        banner = f"{ZWNJ} tag     {sub:<{name_width}}  next      {interval}     last \n"
         rows = []
 
-        count = 0
+        count = 0 
 
         start_index = self.active_page * 26
         end_index = start_index + 26
@@ -950,9 +952,9 @@ class TrackerManager:
             count += 1
             # rows.append(f" {tag}{" "*4}{next}{" "*2}{last}{" "*2}{interval}{" " * 3}{tracker_name}")
             #             1  1    4         13      2       8       2      8       3
-            this_row = f" {tag}{' '*4}{next}{' '*2}{plus_or_minus}{' '*2}{last}{' ' * 3}{tracker_name}"
+            this_row = f" {tag}{' '*2}{next}{' '*2}{plus_or_minus}{' '*2}{last}{' '*2}{tracker_name:<{name_width}}"
             rows.append(this_row)
-            logger.debug(f"{len(next) = }; {len(plus_or_minus) = }; {len(last) = }; {len(rows[-1]) = }")
+            logger.debug(f"{this_row = }")
         if self.selected_id:
             self.selected_row = self.id_to_row[self.selected_id]
         return banner +"\n".join(rows)
@@ -1233,7 +1235,8 @@ class TrackerLexer(Lexer):
 
                 # Extract the parts of the line
                 tag, next_date, interval, last_date, tracker_name = parts[0], parts[1], parts[2], parts[3], " ".join(parts[4:])
-                tracker_name = f"   {tracker_name:<{width-44}}"
+                # tag, next_date, interval, last_date, tracker_name = parts[0], " ".join(parts[1:]), parts[2], parts[3], parts[4]
+                tracker_name = f"  {tracker_name:<{width-45}}"
                 id = tracker_manager.tag_to_id.get((active_page, tag), None)
                 early, timely, tardy = tracker_manager.id_to_times.get(id, (None,None, None))
                 # logger.debug(f"{width = }, {tracker_name = },  ")
@@ -1269,10 +1272,10 @@ class TrackerLexer(Lexer):
                 last_formatted = f"  {last_date: ^8}"
                 # Add the styled parts to the tokens list
                 tokens.append((list_style.get('tag', ''), tag_formatted))
+                tokens.append((name_style, tracker_name))
                 tokens.append((next_style, next_formatted))
                 tokens.append((spread_style, spread_formatted))
                 tokens.append((last_style, last_formatted))
-                tokens.append((name_style, tracker_name))
             elif banner_regex.match(line):
                 # use tracker style to avoid the highlight or list style to apply the highlight
                 tokens.append((tracker_style.get('banner', ''), line))
