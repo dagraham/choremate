@@ -15,45 +15,71 @@ from textual.scroll_view import ScrollView
 from textual.strip import Strip
 from textual.widgets import Input
 from textual.widgets import Static
-from textual.widgets import Label
+from textual.widgets import Markdown
+
+# from textual.widgets import Label
 import string
 import shutil
 from textual.screen import ModalScreen
-from textual.widgets import Button
+
+# from textual.widgets import Button
 from dateutil.parser import parse, ParserError
 from rich.rule import Rule
-from textual.widgets import Markdown, Static, Footer, Header
 from typing import List
-from textual.app import ComposeResult
-from textual.containers import Container
-from textual.widgets import Static, Input
 
+# from textual.app import ComposeResult
+from textual.containers import Container
+
+# from textual.widgets import Static, Input
+from .common import log_msg, display_messages, COLORS
 
 HEADER_COLOR = NAMED_COLORS["LightSkyBlue"]
 TITLE_COLOR = NAMED_COLORS["Cornsilk"]
 
 HelpTitle = f"Chore Mate {VERSION}"
 HelpText = """\
-There are two main views in Chore Mate: 
-1) **List View**: lists the summaries of each chore in the order of when the next completion is likely to be due. This is the default view when Chore Mate is started.
-2) **Details View**: shows the details of a particular chore.
+### Views 
+- **List View**:  
+  lists the summaries of each chore in the order of when the next completion is likely to be needed. 
+- **Details View**:  
+  shows the details of a particular chore.
 
-These key bindings work in both views:
-- **Q**: Quit Chore Mate   
-- **?**: Show this help screen
-- **S**: Save a screenshot of the current view to a file
-
+### Key Bindings
+- Always available:
+    - **Q**: Quit Chore Mate   
+    - **?**: Show this help screen
+    - **S**: Save a screenshot of the current view to a file
 - When list view is active:
     - **A**: Add a new chore.
     - **L**: Refresh the list of chores.
     - **a**-**z**: Show the details of the chore tagged with the corresponding letter.
-
 - When details view is displaying a chore:
     - **C**: Complete the chore.
     - **D**: Delete the chore.
     - **E**: Edit the chore.
     - **ESC**: Return to the list view.
-""".splitlines()
+
+### List View Details
+
+When a chore is completed, Chore Mate records the *interval* between this and the previous completion and then updates the value of the last completion. The updated last completion is displayed in the **last** column of the list view. The mean or average of the recorded intervals for the chore is then added to the last completion to get a forecast of when the next completion will likely be needed. This forecast is displayed in the **next** column of the list view. The chores in list view are sorted by **next**.
+
+How good is the **next** forecast? When three or more intervals have been recorded, Chore Mate separates the intervals into those that are *shorter* than the *mean interval* and those that are *longer*. The average difference between an interval and the mean interval is then calculated for *each* of the two groups. The *mean absolute differences* for the shorter and longer groups are called *mad_minus* and *mad_plus*, respectively. The column in the list view labeled **+/-** displays the range from `next - 3 mad_minus` to `next + 3 mad_plus`. The significance of this value is that at least 77.8% of the recorded intervals lie within the range from  - a consquence of *Chebyshev's inequality*.
+
+The chores are color coded in the list view based on the current datetime, *now*, so that chores are displayed in one of seven possible colors. The diagram below shows the critical datetimes for a chore with `|`'s. The one labeled `N` in the middle corresponds to *next*. The others, moving from left to right represent `next - 5 mad_minus`, `next - 4 mad_minus`, and so forth ending with  `next + 5 mad_plus`. The position if *now* on the time axis is initially indicated by `x`. The numbers below the line represent the color numbers used for the different intervals. 
+
+>  
+        -5  -4  -3  -2  -1   N   1   2   3   4   5  mad 
+    --x--|---|---|---.---.---|---.-X-.---|---|---|----> time
+       1   2   3             4             5   6   7  colors
+                 |<-------- 7/9 -------->|
+             |<------------ 7/8 ------------>| 
+         |<--------------- 23/25 --------------->|
+
+
+Note that `x` is initially in the range for Color 1 having not yet reached `- 5`. As time and `x` progress to the right, the color changes from 1 to 2 to 3 and so forth. Suppose at the moment corresponding to `X` that the chore is completed.  With this new interval, the mean interval, mad_minus and mad_plus will be updated and all the components of the new diagram will be moved a distance corresponding to the new "mean interval" to the right of `X` which will likely put `X` in the range for Color 1. 
+
+As noted above, the range for Color 4, from -3 to +3 in the diagram, represents at least 77.8% of the recorded intervals so, based on the history of intervals, having Color 4 means that it will likely need to be completed soon. The 77.8% = 7/9 comes from the formula `1 - 2/k^2` where k is the number of mean absolute deviations from the mean which, in this case, means k = 3. For k = 4 and 5, the fraction of intervals that fall within the range is is 7/8 = 87.5% and 23/25 = 92.5%, respectively. So adding the band corresponding to Colors 3 and 5 increases the coverage to at least 87.5% of the intervals and adding the band for Colors 2 and 6 increases the coverage to at least 92.5% of the intervals. The final band, Colors 1 and 7, covers at most the remaining 7.5% of the intervals.
+ """.splitlines()
 
 
 class AddChoreScreen(ModalScreen):
@@ -221,6 +247,25 @@ class DateInputScreen(ModalScreen):
             id="instructions",
         )  # Feedback message
 
+    def compose(self) -> ComposeResult:
+        """Create UI elements with a fixed footer."""
+        with Container(id="content"):  # Content container
+            yield Static(f"Enter completion date for: {self.chore_name}", id="title")
+            yield Input(placeholder="datetime expression", id="date_input")
+            yield Static("", id="validation_message")  # Feedback message
+
+        # Footer explicitly placed at the bottom
+        yield Static(
+            "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel",
+            id="footer",
+        )
+
+    def on_mount(self) -> None:
+        """Ensure the footer is styled properly."""
+        footer = self.query_one("#footer", Static)
+        # footer.styles.align = "center"
+        footer.styles.margin_top = 1  # Ensures space between content and footer
+
     def validate_date(self, date_str: str) -> str:
         """Try to parse the entered date."""
         try:
@@ -339,7 +384,12 @@ class FullScreenList(Screen):
 
     def compose(self) -> ComposeResult:
         """Compose the layout."""
-        yield Static(self.title, id="scroll_title")
+        width = shutil.get_terminal_size().columns - 3
+        self.virtual_size = Size(width, len(self.lines))
+        log_msg(
+            f"FullScreenList: {self.title = }, {len(self.title) = },  {self.lines[:3] = }"
+        )
+        yield Static(self.title, id="scroll_title", expand=True)
         yield Static(
             Rule("", style="#fff8dc"), id="separator"
         )  # Add a horizontal line separator

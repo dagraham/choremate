@@ -7,6 +7,17 @@ from rich.console import Console
 
 ELLIPSIS_CHAR = "…"
 
+COLORS = {
+    0: "#87cefa",
+    1: "#32cd32",
+    2: "#adff2f",
+    3: "#ffff00",
+    4: "#ffff00",
+    5: "#ffb920",
+    6: "#ff8438",
+    7: "#ff5050",
+}
+
 
 def truncate_string(s: str, max_length: int) -> str:
     log_msg(f"Truncating string '{s}' to {max_length} characters")
