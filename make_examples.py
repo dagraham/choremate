@@ -61,7 +61,7 @@ def process_items(items):
         names.append(name)
         mean_interval, mean_absolute_deviation, num_items = item
         result = generate_intervals(
-            f"[{count}] {name}", mean_interval, mean_absolute_deviation, num_items
+            name, mean_interval, mean_absolute_deviation, num_items
         )
         results.append(result)
 
@@ -71,7 +71,7 @@ def process_items(items):
 items = []
 for days in range(1, 15):
     hours = days * random.choice([1, 2, 3])
-    count = random.choice([1, 2, 3, 3, 4, 4, 4, 6, 6, 9, 9, 12, 12, 15])
+    count = random.choice([1, 2, 3, 3, 4, 4, 6, 6, 9, 9, 12, 12, 15])
     items.append((timedelta(days=days, hours=hours), timedelta(hours=hours), count))
 
 
