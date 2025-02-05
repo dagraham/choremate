@@ -23,8 +23,8 @@ class DatabaseManager:
                 first_completion INTEGER DEFAULT 0,
                 last_completion INTEGER DEFAULT 0,
                 mean_interval INTEGER DEFAULT 0,
-                mad_plus INTEGER DEFAULT 0,
-                mad_minus INTEGER DEFAULT 0,
+                mad_more INTEGER DEFAULT 0,
+                mad_less INTEGER DEFAULT 0,
                 next INTEGER DEFAULT 0
             )
         """)
@@ -98,12 +98,12 @@ class DatabaseManager:
                         mean_interval - i for i in intervals if i < mean_interval
                     ]
 
-                    mad_plus = (
+                    mad_more = (
                         round(sum(positive_deviations) / len(positive_deviations))
                         if positive_deviations
                         else 0
                     )
-                    mad_minus = (
+                    mad_less = (
                         round(sum(negative_deviations) / len(negative_deviations))
                         if negative_deviations
                         else 0
@@ -112,13 +112,13 @@ class DatabaseManager:
                     self.cursor.execute(
                         """
                         UPDATE Chores 
-                        SET mean_interval = ?, mad_plus = ?, mad_minus = ?, next = ?
+                        SET mean_interval = ?, mad_more = ?, mad_less = ?, next = ?
                         WHERE chore_id = ?
                         """,
                         (
                             mean_interval,
-                            mad_plus,
-                            mad_minus,
+                            mad_more,
+                            mad_less,
                             next_due,
                             chore_id,
                         ),
@@ -142,7 +142,7 @@ class DatabaseManager:
 
     def list_chores(self):
         self.cursor.execute("""
-            SELECT chore_id, name, created, first_completion, last_completion, mean_interval, mad_minus, mad_plus, next, (SELECT COUNT(*) FROM Intervals WHERE Intervals.chore_id = Chores.chore_id) AS num_completions
+            SELECT chore_id, name, created, first_completion, last_completion, mean_interval, mad_less, mad_more, next, (SELECT COUNT(*) FROM Intervals WHERE Intervals.chore_id = Chores.chore_id) AS num_completions
             FROM Chores 
             ORDER BY next, name
         """)
@@ -151,7 +151,7 @@ class DatabaseManager:
     def show_chore(self, name):
         self.cursor.execute(
             """
-            SELECT chore_id, name, created, first_completion, last_completion, mean_interval, mad_minus, mad_plus, next, (SELECT COUNT(*) FROM Intervals WHERE Intervals.chore_id = Chores.chore_id) AS num_completions
+            SELECT chore_id, name, created, first_completion, last_completion, mean_interval, mad_less, mad_more, next, (SELECT COUNT(*) FROM Intervals WHERE Intervals.chore_id = Chores.chore_id) AS num_completions
             FROM Chores WHERE chore_id = ?
         """,
             (name,),

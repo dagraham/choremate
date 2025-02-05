@@ -1,5 +1,4 @@
 from modules.model import DatabaseManager
-from modules.common import fmt_dt, fmt_td
 from rich.table import Table
 from rich.box import HEAVY_EDGE
 from datetime import datetime
@@ -83,9 +82,7 @@ class Controller:
         chores = self.db_manager.list_chores()
         log_msg(f"Found {len(chores)}: {chores}")
         if not chores:
-            return [
-                "No chores found.",
-            ]
+            return "No chores found."
 
         table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
@@ -131,9 +128,7 @@ class Controller:
         chores = self.db_manager.list_chores()
         log_msg(f"Found {len(chores)}: {chores}")
         if not chores:
-            return [
-                "No chores found.",
-            ]
+            return "No chores found."
 
         table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
@@ -142,39 +137,33 @@ class Controller:
         table.add_column("next", justify="center", width=8)
         table.add_column("+/-", justify="center", width=6)
 
-        # 5*2 + 6*2 + 10 = 32 => name width = width - 32
-        name_width = width - 32
+        # 5*2 + 8*2 + 6 = 10 + 16 + 6 = 32 => name width = width - 32
+        name_width = width - 33
         results = [
-            f"{'row':^3}  {' name ':<{name_width}}  {' next ':^8}  {' mean ':^6}  {' +/- ':^6}",
+            f"{'row':^3}  {'name':<{name_width}}  {'last':^8}  {'next':^8}  {'+/-':^6}",
         ]
 
         # chore_id: 0,  name: 1, created: 2, first_completion: 3, last_completion: 4,
-        # mean_interval: 5, mad_minus: 6, mad_plus: 7, next: 8, num_completions: 9
-        # name [1], next [8 or 4]
+        # mean_interval: 5, mad_less: 6, mad_more: 7, next: 8, num_completions: 9
         self.chore_names = []
         for idx, chore in enumerate(chores):
             self.chore_names.append(chore[1])
             tag = indx_to_tag(idx)
             self.tag_to_id[tag] = chore[0]
-            # next_or_last = fmt_dt(chore[8]) if chore[8] else f"[{fmt_dt(chore[2])}]"
-            if chore[8]:
-                if chore[6]:
-                    # 4, 3, 2 * mad_minus before next and 2, 3, 4 * mad_plus after next
-                    #             -4  -3  -2  -1   0   1   2   3   4
-                    # -------------|---|---|---.---X---.---|---|---|--------------------
-                    #          0     1   2     3       4     5   6    7
-                    slots_minus = [chore[8] - i * chore[6] for i in range(2, 5)]
-                    slots_plus = [chore[8] + i * chore[7] for i in range(2, 5)]
-                    slots = slots_minus + slots_plus
-                    slots.sort()
-                    slot_num = bisect.bisect_left(slots, now) if slots else 0
-                    row_color = COLORS.get(slot_num, "dim")
-                else:
-                    slot_num = 0
-                    row_color = COLORS[3] if now < chore[8] else COLORS[5]
+            if chore[8] and chore[6]:
+                # 4, 3, 2 * mad_less before next and 2, 3, 4 * mad_more after next
+                #             -4  -3  -2  -1   0   1   2   3   4
+                # -------------|---|---|---.---X---.---|---|---|--------------------
+                #          0     1   2     3       4     5   6    7
+                slots_minus = [chore[8] - i * chore[6] for i in range(2, 5)]
+                slots_plus = [chore[8] + i * chore[7] for i in range(2, 5)]
+                slots = slots_minus + slots_plus
+                slots.sort()
+                slot_num = bisect.bisect_left(slots, now) if slots else 0
+                row_color = COLORS.get(slot_num, "#ffffff")
             else:
                 slot_num = 0
-                row_color = "dim"
+                row_color = "#ffffff"
             log_msg(
                 f"next: {chore[8] = }, {fmt_dt(chore[8]) = }, {slot_num = }, {row_color = }"
             )
@@ -183,10 +172,9 @@ class Controller:
                 [
                     f"[dim]{tag:^3}[/dim]",
                     f"[{row_color}]{name:<{name_width}}[/{row_color}]",
-                    # f"[{row_color}]{next_or_last:^10}[/{row_color}]",
-                    f"[{row_color}]{fmt_dt(chore[8]):^8}[/{row_color}]",
-                    f"[{row_color}]{fmt_td(chore[5]):^6}[/{row_color}]",
-                    f"[{row_color}]{fmt_td(3 * (chore[6] + chore[7])):^6}[/{row_color}]",
+                    f"[{row_color}]{fmt_dt(chore[4]):<8}[/{row_color}]",
+                    f"[{row_color}]{fmt_dt(chore[8]):<8}[/{row_color}]",
+                    f"[{row_color}]{fmt_td(2 * (chore[6] + chore[7])):^6}[/{row_color}]",
                 ]
             )
             results.append(row)
@@ -206,16 +194,16 @@ class Controller:
             "first_completion",
             "last_completion",
             "mean_interval",
-            "mad_minus",
-            "mad_plus",
+            "mad_less",
+            "mad_more",
             "next",
             "num_intervals",
         ]
         chore_name = record[1]
-        results = [f"[bold]Details for tag [green]{tag}[/green][/bold]"]
+        results = [f"[bold]Details for tag [yellow]{tag}[/yellow][/bold]"]
         for field, value in zip(fields, record):
             log_msg(f"{field}: {value}")
-            field_fmt = f"[bold blue]{field}[/bold blue]"
+            field_fmt = f"[bold #87cefa]{field}[/bold #87cefa]"
             if field in (
                 "created",
                 "first_completion",
@@ -223,11 +211,9 @@ class Controller:
                 "next",
             ):
                 value = fmt_dt(value, False)
-            elif field in ("mean_interval", "mad_minus", "mad_plus"):
+            elif field in ("mean_interval", "mad_less", "mad_more"):
                 value = fmt_td(value, False)
-            results.append(
-                f"  {field_fmt}: [not bold][yellow]{value}[/yellow][/not bold]"
-            )
+            results.append(f"  {field_fmt}: [not bold]{value}[/not bold]")
 
             # return chore_id, "\n".join(results)
             log_msg(f"returing chore_id: {chore_id}, chore_name: {chore_name}")

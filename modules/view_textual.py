@@ -1,5 +1,4 @@
 from .__version__ import version as VERSION
-from .common import log_msg, display_messages
 from datetime import datetime, timedelta
 
 # from packaging.version import parse as parse_version
@@ -36,7 +35,7 @@ from .common import log_msg, display_messages, COLORS
 HEADER_COLOR = NAMED_COLORS["LightSkyBlue"]
 TITLE_COLOR = NAMED_COLORS["Cornsilk"]
 
-HelpTitle = f"Chore Mate {VERSION}"
+HelpTitle = f"ChoreMate {VERSION}"
 HelpText = """\
 ### Views 
 - **List View**:  
@@ -46,7 +45,7 @@ HelpText = """\
 
 ### Key Bindings
 - Always available:
-    - **Q**: Quit Chore Mate   
+    - **Q**: Quit ChoreMate   
     - **?**: Show this help screen
     - **S**: Save a screenshot of the current view to a file
 - When list view is active:
@@ -61,24 +60,26 @@ HelpText = """\
 
 ### List View Details
 
-When a chore is completed, Chore Mate records the *interval* between this and the previous completion and then updates the value of the last completion. The updated last completion is displayed in the **last** column of the list view. The mean or average of the recorded intervals for the chore is then added to the last completion to get a forecast of when the next completion will likely be needed. This forecast is displayed in the **next** column of the list view. The chores in list view are sorted by **next**.
+When a chore is completed, ChoreMate records the *interval* between this and the previous completion and then updates the value of the last completion. The updated last completion is displayed in the **last** column of the list view. The mean or average of the recorded intervals for the chore is then added to the last completion to get a forecast of when the next completion will likely be needed. This forecast is displayed in the **next** column of the list view. The chores in list view are sorted by **next**.
 
-How good is the **next** forecast? When three or more intervals have been recorded, Chore Mate separates the intervals into those that are *shorter* than the *mean interval* and those that are *longer*. The average difference between an interval and the mean interval is then calculated for *each* of the two groups. The *mean absolute differences* for the shorter and longer groups are called *mad_minus* and *mad_plus*, respectively. The column in the list view labeled **+/-** displays the range from `next - 3 mad_minus` to `next + 3 mad_plus`. The significance of this value is that at least 77.8% of the recorded intervals lie within the range from  - a consquence of *Chebyshev's inequality*.
+How good is the **next** forecast? When three or more intervals have been recorded, ChoreMate separates the intervals into those that are *less* than the *mean interval* and those that are *more* than the *mean interval*. The average difference between an interval and the *mean interval* is then calculated for *each* of the two groups and labeled *mad_less* and *mad_more*, respectively. The column in the list view labeled **+/-** displays the range from `next - 2 × mad_less` to `next + 2 × mad_more`. The significance of this value is that at least 50% of the recorded intervals must lie within this range - a consquence of *Chebyshev's inequality*.
 
-The chores are color coded in the list view based on the current datetime, *now*, so that chores are displayed in one of seven possible colors. The diagram below shows the critical datetimes for a chore with `|`'s. The one labeled `N` in the middle corresponds to *next*. The others, moving from left to right represent `next - 5 mad_minus`, `next - 4 mad_minus`, and so forth ending with  `next + 5 mad_plus`. The position if *now* on the time axis is initially indicated by `x`. The numbers below the line represent the color numbers used for the different intervals. 
+The chores are diplayed in the list view in one of seven possible colors based on the current datetime.  The diagram below shows the critical datetimes for a chore with `|`'s. The one labeled `N` in the middle corresponds to the value in the *next* column. The others, moving from the far left to the right represent offsets from *next*:  `next - 4 × mad_less`, `next - 3 × mad_less`, and so forth ending with `next + 4 × mad_more`. The numbers below the line represent the Color number used for the different intervals. 
 
->  
-        -5  -4  -3  -2  -1   N   1   2   3   4   5  mad 
-    --x--|---|---|---.---.---|---.-X-.---|---|---|----> time
-       1   2   3             4             5   6   7  colors
-                 |<-------- 7/9 -------->|
-             |<------------ 7/8 ------------>| 
-         |<--------------- 23/25 --------------->|
+``` 
+   -4  -3  -2  -1   N   1   2   3   4 mad offsets
+-x--|---|---|---.---|---.-X-|---|---|----> time
+  1   2   3         4         5   6   7 colors
+            |<---- 1/2 ---->|
+        |<-------- 7/9 -------->| 
+    |<------------ 7/8 ------------>|
+```
 
+If the current datetime is indicated by `x` on the time axis then the chore would be displayed in Color 1. As time and `x` progress to the right, the color changes from 1 to 2 to 3 and so forth. A cool blue is used for Color 1 with the temperature of the color ramping up to yellow for Color 4 and ultimately red for Color 7. 
 
-Note that `x` is initially in the range for Color 1 having not yet reached `- 5`. As time and `x` progress to the right, the color changes from 1 to 2 to 3 and so forth. Suppose at the moment corresponding to `X` that the chore is completed.  With this new interval, the mean interval, mad_minus and mad_plus will be updated and all the components of the new diagram will be moved a distance corresponding to the new "mean interval" to the right of `X` which will likely put `X` in the range for Color 1. 
+Suppose at the moment corresponding to `X` that the chore is completed.  With this new interval, the mean interval, mad_less and mad_more will be updated and all the components of the new diagram will be moved a distance corresponding to the new "mean interval" to the right of `X` which will likely put new postion of `X` in the range for Color 1. 
 
-As noted above, the range for Color 4, from -3 to +3 in the diagram, represents at least 77.8% of the recorded intervals so, based on the history of intervals, having Color 4 means that it will likely need to be completed soon. The 77.8% = 7/9 comes from the formula `1 - 2/k^2` where k is the number of mean absolute deviations from the mean which, in this case, means k = 3. For k = 4 and 5, the fraction of intervals that fall within the range is is 7/8 = 87.5% and 23/25 = 92.5%, respectively. So adding the band corresponding to Colors 3 and 5 increases the coverage to at least 87.5% of the intervals and adding the band for Colors 2 and 6 increases the coverage to at least 92.5% of the intervals. The final band, Colors 1 and 7, covers at most the remaining 7.5% of the intervals.
+As noted above, the range for Color 4, from -2 to +2 in the diagram, represents at least 1/2 of the recorded intervals so, based on the history of intervals, having Color 4 means that it will likely need to be completed soon. The 1/2 comes from the formula `1 - 2/k^2` where k is the number of mean absolute deviations from the mean which, in this case, means k = 2. For k = 3 and 4, the fractions of the intervals that fall within the range are 7/9 and 7/8, respectively.  
  """.splitlines()
 
 
@@ -301,17 +302,35 @@ class DetailsScreen(Screen):
         self.lines = details[1:]
         self.footer = [
             "",
-            "[bold yellow]ESC[/bold yellow] return to previous screen",
+            "[bold yellow]L[/bold yellow] list view, [bold yellow]C[/bold yellow] complete, [bold yellow]D[/bold yellow] delete, [bold yellow]E[/bold yellow] edit",
         ]
 
     def compose(self) -> ComposeResult:
-        yield Static(self.title, id="details_title", classes="title-class")
-        # yield Markdown("\n".join(self.lines), expand=True, id="details_text")
+        """Create UI elements with a fixed footer."""
+
         if self.markdown:
+            yield Static(self.title, id="details_title", classes="title-class")
             yield Markdown("\n".join(self.lines), id="details_text")
+            yield Static(
+                "[bold yellow]ESC[/bold yellow] return to previous display", id="footer"
+            )
         else:
-            yield Static("\n".join(self.lines), id="details_text")
-        yield Static("\n".join(self.footer), id="custom_footer")
+            with Container(id="content"):  # Content container
+                yield Static(self.title, id="details_title", classes="title-class")
+                # yield markdown("\n".join(self.lines), expand=true, id="details_text")
+                if self.markdown:
+                    yield Markdown("\n".join(self.lines), id="details_text")
+                else:
+                    yield Static("\n".join(self.lines), id="details_text")
+
+            # Footer explicitly placed at the bottom
+            yield Static("\n".join(self.footer), id="footer")
+
+    def on_mount(self) -> None:
+        """Ensure the footer is styled properly."""
+        footer = self.query_one("#footer", Static)
+        # footer.styles.align = "center"
+        footer.styles.margin_top = 1  # Ensures space between content and footer
 
     def on_key(self, event):
         if event.key == "escape":
