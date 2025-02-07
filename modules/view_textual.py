@@ -232,9 +232,10 @@ class AddChoreScreen(ModalScreen):
 class DateInputScreen(ModalScreen):
     """Screen for entering a completion datetime."""
 
-    def __init__(self, controller, chore_name):
+    def __init__(self, controller, chore_id, chore_name):
         super().__init__()
         self.controller = controller
+        self.chore_id = chore_id
         self.chore_name = chore_name
         self.parsed_date = None  # Holds valid parsed datetime
 
@@ -435,6 +436,7 @@ class TextualView(App):
         super().__init__()
         self.controller = controller
         self.title = ""
+        self.afill = 1
         self.view = "list"  # Initial view is the ScrollableList
         self.selected_chore = None
         self.selected_name = None
@@ -472,7 +474,10 @@ class TextualView(App):
         chores = self.controller.show_chores_as_list(
             self.app.size.width
         )  # Fetch chore data
+        num_chores = len(chores) - 1
+        self.afill = 1 if num_chores < 26 else 2 if num_chores < 676 else 3
         details = chores  # Title + chore data
+
         self.view = "list"  # Track that we're in the list view
         self.push_screen(FullScreenList(details))
 
@@ -512,15 +517,19 @@ class TextualView(App):
                 log_msg(
                     f"{self.selected_chore = }, {parsed_date = }, {type(parsed_date) = }"
                 )
-                self.controller.complete_chore(self.selected_chore, parsed_date)
+                self.controller.complete_chore(
+                    self.selected_chore, self.selected_name, parsed_date
+                )
                 self.notify(
-                    f"{self.selected_name} completed at {parsed_date.strftime('%Y-%m-%d %H:%M')}"
+                    f"{self.selected_name} completed at {parsed_date.strftime('%Y-%m-%d %H:%M')}",
+                    severity="success",
                 )
                 # self.action_show_list()  # Refresh the list view
                 self.action_show_chore(self.selected_tag)  # Refresh the list view
 
         self.push_screen(
-            DateInputScreen(self.controller, self.selected_chore), callback=on_close
+            DateInputScreen(self.controller, self.selected_chore, self.selected_name),
+            callback=on_close,
         )
 
     def action_delete_chore(self):

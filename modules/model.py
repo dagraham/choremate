@@ -144,7 +144,7 @@ class DatabaseManager:
         self.cursor.execute("""
             SELECT chore_id, name, created, first_completion, last_completion, mean_interval, mad_less, mad_more, next, (SELECT COUNT(*) FROM Intervals WHERE Intervals.chore_id = Chores.chore_id) AS num_completions
             FROM Chores 
-            ORDER BY next, name
+            ORDER BY next - mad_less, next, name
         """)
         return self.cursor.fetchall()
 

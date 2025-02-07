@@ -67,65 +67,21 @@ class Controller:
         self.db_manager = DatabaseManager(database_path, reset=reset)
         self.tag_to_id = {}
         self.chore_names = []
+        self.afill = 1
         log_msg("Controller initialized.")
 
     def is_chore_unique(self, name: str):
         return name not in self.chore_names
 
-    def show_chores_as_table(self, width: int = 70):
-        now = round(
-            datetime.now()
-            .replace(hour=0, minute=0, second=0, microsecond=0)
-            .timestamp()
-        )
-
-        chores = self.db_manager.list_chores()
-        log_msg(f"Found {len(chores)}: {chores}")
-        if not chores:
-            return "No chores found."
-
-        table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
-        table.add_column("row", justify="center", width=3, style="dim")
-        table.add_column("name", width=25, overflow="ellipsis", no_wrap=True)
-        table.add_column("last", justify="center", width=8)
-        table.add_column("next", justify="center", width=8)
-        table.add_column("+/-", justify="center", width=6)
-
-        # chore_id: 0,  name: 1, created: 2, first_completion: 3, last_completion: 4,
-        # mean_interval: 5, mean_absolute_deviation: 6, begin: 7, next: 8, num_completions: 9
-        self.chore_names = []
-        for idx, chore in enumerate(chores):
-            self.chore_names.append(chore[1])
-            tag = indx_to_tag(idx)
-            self.tag_to_id[tag] = chore[0]
-            if chore[7] and chore[6]:
-                slots = [chore[7] + i * chore[6] for i in range(7)]
-                slot_num = bisect.bisect_left(slots, now) if slots else 0
-                row_color = COLORS.get(slot_num, "#ffffff")
-            else:
-                slot_num = 0
-                row_color = "#ffffff"
-            log_msg(
-                f"next: {chore[8] = }, {fmt_dt(chore[8]) = }, {slot_num = }, {row_color = }"
-            )
-            table.add_row(
-                str(tag),
-                f"[{row_color}]{chore[1]}[/{row_color}]",
-                f"[{row_color}]{fmt_dt(chore[4])}[/{row_color}]",
-                f"[{row_color}]{fmt_dt(chore[8])}[/{row_color}]",
-                f"[{row_color}]{fmt_td(3 * chore[6])}[/{row_color}]",
-            )
-
-        return table
-
     def show_chores_as_list(self, width: int = 70):
         now = round(
             datetime.now()
-            .replace(hour=0, minute=0, second=0, microsecond=0)
+            # .replace(hour=0, minute=0, second=0, microsecond=0)
             .timestamp()
         )
 
         chores = self.db_manager.list_chores()
+        self.afill = 1 if len(chores) < 26 else 2 if len(chores) < 676 else 3
         log_msg(f"Found {len(chores)}: {chores}")
         if not chores:
             return "No chores found."
@@ -133,14 +89,14 @@ class Controller:
         table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
         table.add_column("name", width=25, overflow="ellipsis", no_wrap=True)
-        table.add_column("last", justify="center", width=8)
         table.add_column("next", justify="center", width=8)
+        table.add_column("mean", justify="center", width=6)
         table.add_column("+/-", justify="center", width=6)
 
-        # 5*2 + 8*2 + 6 = 10 + 16 + 6 = 32 => name width = width - 32
-        name_width = width - 33
+        # 4*2 + 3 + 8 + 6*2 + 1 = 32 => name width = width - 32
+        name_width = width - 32
         results = [
-            f"{'row':^3}  {'name':<{name_width}}  {'last':^8}  {'next':^8}  {'+/-':^6}",
+            f"{'row':^3}  {'name':<{name_width}}  {'next':^8}  {'mean':^6}  {'+/-':^6}",
         ]
 
         # chore_id: 0,  name: 1, created: 2, first_completion: 3, last_completion: 4,
@@ -148,32 +104,46 @@ class Controller:
         self.chore_names = []
         for idx, chore in enumerate(chores):
             self.chore_names.append(chore[1])
-            tag = indx_to_tag(idx)
+            tag = indx_to_tag(idx, self.afill)
             self.tag_to_id[tag] = chore[0]
-            if chore[8] and chore[6]:
-                # 4, 3, 2 * mad_less before next and 2, 3, 4 * mad_more after next
-                #             -4  -3  -2  -1   0   1   2   3   4
-                # -------------|---|---|---.---X---.---|---|---|--------------------
-                #          0     1   2     3       4     5   6    7
-                slots_minus = [chore[8] - i * chore[6] for i in range(2, 5)]
-                slots_plus = [chore[8] + i * chore[7] for i in range(2, 5)]
-                slots = slots_minus + slots_plus
-                slots.sort()
-                slot_num = bisect.bisect_left(slots, now) if slots else 0
-                row_color = COLORS.get(slot_num, "#ffffff")
+            if chore[8]:
+                # these use colors 1, 2, ..., 7
+                if chore[6]:
+                    # 4, 3, 2 * mad_less before next and 2, 3, 4 * mad_more after next
+                    #             -4  -3  -2  -1   0   1   2   3   4
+                    # -------------|---|---|---.---|---.---|---|---|--------------------
+                    #            1   2   3         4         5   6    7
+                    slots_minus = [chore[8] - i * chore[6] for i in range(2, 5)]
+                    slots_plus = [chore[8] + i * chore[7] for i in range(2, 5)]
+                    slots = (
+                        [
+                            0,
+                        ]
+                        + slots_minus
+                        + slots_plus
+                    )
+                    slots.sort()
+                    slot_num = bisect.bisect_left(slots, now) if slots else 0
+                    row_color = COLORS.get(slot_num, "#ffffff")
+                else:
+                    slot_num = 0
+                    row_color = COLORS[3] if now < chore[8] else COLORS[5]
+                log_msg(
+                    f"next: {now  < chore[8] = }, {fmt_dt(chore[8], False) = }, {chore[6] = }, {slot_num = }, {row_color = }"
+                )
+            elif chore[4]:
+                # this uses color 0 - one completion - active but no basis for prediction
+                row_color = COLORS[0]
             else:
-                slot_num = 0
-                row_color = "#ffffff"
-            log_msg(
-                f"next: {chore[8] = }, {fmt_dt(chore[8]) = }, {slot_num = }, {row_color = }"
-            )
+                # and this uses dim - no completions - inactive
+                row_color = "dim"
             name = truncate_string(chore[1], name_width)
             row = "  ".join(
                 [
                     f"[dim]{tag:^3}[/dim]",
                     f"[{row_color}]{name:<{name_width}}[/{row_color}]",
-                    f"[{row_color}]{fmt_dt(chore[4]):<8}[/{row_color}]",
                     f"[{row_color}]{fmt_dt(chore[8]):<8}[/{row_color}]",
+                    f"[{row_color}]{fmt_td(chore[5]):^6}[/{row_color}]",
                     f"[{row_color}]{fmt_td(2 * (chore[6] + chore[7])):^6}[/{row_color}]",
                 ]
             )
@@ -224,9 +194,12 @@ class Controller:
         log_msg(f"Chore '{name}' added successfully.")
 
     def complete_chore(
-        self, chore_id, completion_datetime: int = round(datetime.now().timestamp())
+        self,
+        chore_id,
+        chore_name,
+        completion_datetime: int = round(datetime.now().timestamp()),
     ):
-        if type(completion_datetime) == datetime:
+        if type(completion_datetime) is datetime:
             completion_datetime = round(completion_datetime.timestamp())
         log_msg(f"Completing chore {chore_id} at {fmt_dt(completion_datetime)}.")
         self.db_manager.complete_chore(chore_id, completion_datetime)

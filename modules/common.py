@@ -7,15 +7,31 @@ from rich.console import Console
 
 ELLIPSIS_CHAR = "…"
 
+# COLORS = {
+#     1: "#6495ed",  # cornflowerblue
+#     2: "#87cefa",  # lightskyblue
+#     # 2: "#7fffd4",  # aquamarine
+#     3: "#98fb98",  # palegreen
+#     # 2: "#32cd32",  # limegreen
+#     # 2: "#90ee90",  # lightgreen
+#     # 3: "#adff2f",  # greenyellow
+#     4: "#ffff00",
+#     5: "#ffb920",
+#     6: "#ff8438",
+#     7: "#ff5050",
+#     8: "#ff5050",
+# }
+
 COLORS = {
-    0: "#87cefa",
-    1: "#32cd32",
-    2: "#adff2f",
-    3: "#ffff00",
-    4: "#ffff00",
-    5: "#ffb920",
-    6: "#ff8438",
-    7: "#ff5050",
+    0: "#4682b4",  # steelblue
+    1: "#6495ed",  # cornflowerblue
+    2: "#87cefa",  # lightskyblue
+    3: "#98fb98",  # palegreen
+    4: "#ffff00",  # yellow
+    5: "#ffb920",  # orange
+    6: "#ff8438",  # orange red
+    7: "#ff5050",  # red
+    # 8: "#ff5050",  # red
 }
 
 

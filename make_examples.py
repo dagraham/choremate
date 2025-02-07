@@ -21,10 +21,14 @@ def get_name(names: List[str]):
     """Generate a random phrase not belonging to the provided list."""
     name = phrase()
     count = 0
-    while name in names and count < 10:
+    while name in names and count < 16:
         count += 1
         name = phrase()
     return name
+
+
+def get_delay():
+    return timedelta(hours=random.randint(-24, 20))
 
 
 def generate_intervals(name, mean_interval, mean_absolute_deviation, num_items):
@@ -46,7 +50,7 @@ def generate_intervals(name, mean_interval, mean_absolute_deviation, num_items):
         for _ in range(num_items)
     ]
     last_time = now - intervals[-1]
-    starting_time = now - sum(intervals, timedelta())
+    starting_time = now - sum(intervals, timedelta()) - get_delay()
     return (name, starting_time, last_time, intervals[:-1])
 
 
@@ -69,9 +73,26 @@ def process_items(items):
 
 
 items = []
-for days in range(1, 15):
-    hours = days * random.choice([1, 2, 3])
-    count = random.choice([1, 2, 3, 3, 4, 4, 6, 6, 9, 9, 12, 12, 15])
+# items = [
+#     (timedelta(days=2), timedelta(hours=1), 7),
+#     (timedelta(days=3), timedelta(hours=1), 7),
+#     (timedelta(days=4), timedelta(hours=1), 7),
+#     (timedelta(days=5), timedelta(hours=1), 7),
+#     (timedelta(days=6), timedelta(hours=2), 7),
+#     (timedelta(days=7), timedelta(hours=2), 7),
+#     (timedelta(days=8), timedelta(hours=2), 7),
+#     (timedelta(days=9), timedelta(hours=2), 7),
+#     (timedelta(days=10), timedelta(hours=3), 7),
+#     (timedelta(days=11), timedelta(hours=3), 7),
+#     (timedelta(days=12), timedelta(hours=3), 7),
+#     (timedelta(days=13), timedelta(hours=3), 7),
+#     (timedelta(days=14), timedelta(hours=3), 7),
+# ]
+#
+for i in range(24):
+    days = random.randint(1, 14)
+    hours = days + random.randint(0, 6)
+    count = random.randint(1, 10)
     items.append((timedelta(days=days, hours=hours), timedelta(hours=hours), count))
 
 
