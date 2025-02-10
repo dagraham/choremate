@@ -4,6 +4,7 @@ import textwrap
 import shutil
 from rich.markdown import Markdown
 from rich.console import Console
+import os
 
 ELLIPSIS_CHAR = "…"
 
@@ -31,12 +32,11 @@ COLORS = {
     5: "#ffb920",  # orange
     6: "#ff8438",  # orange red
     7: "#ff5050",  # red
-    # 8: "#ff5050",  # red
 }
 
 
 def truncate_string(s: str, max_length: int) -> str:
-    log_msg(f"Truncating string '{s}' to {max_length} characters")
+    # log_msg(f"Truncating string '{s}' to {max_length} characters")
     if len(s) > max_length:
         return f"{s[: max_length - 2]} {ELLIPSIS_CHAR}"
     else:
@@ -51,15 +51,14 @@ def log_msg(msg: str, file_path: str = "log_msg.md"):
         msg (str): The message to log.
         file_path (str, optional): Path to the log file. Defaults to "log_msg.txt".
     """
-    caller_name = inspect.stack()[1].function
-    # wrapped_lines = textwrap.wrap(
-    #     fmt_msg,
-    #     initial_indent="",
-    #     subsequent_indent="  ",
-    #     width=shutil.get_terminal_size()[0] - 3,
-    # )
+    stack = inspect.stack()[1]
+    caller_name = stack.function  # Function name
+    caller_basename = os.path.basename(stack.filename)  # File name (without full path)
+    caller_file = os.path.splitext(caller_basename)[0]
+
     lines = [
-        f"- {datetime.now().strftime('%y-%m-%d %H:%M')} " + rf"({caller_name}):  ",
+        f"- {datetime.now().strftime('%y-%m-%d %H:%M')} "
+        + rf"({caller_file}/{caller_name}):  ",
     ]
     lines.extend(
         [
@@ -145,7 +144,7 @@ def fmt_dt(dt: int, short=True):
     >>> fmt_dt(1610386800)
     '2021-01-11 00:00:00'
     """
-    log_msg(f"dt: {dt}")
+    # log_msg(f"dt: {dt}")
     fmt = "%y-%m-%d" if short else "%Y-%m-%d %H:%M"
     if type(dt) is not int:
         return "?"

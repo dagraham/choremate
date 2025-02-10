@@ -134,11 +134,11 @@ for name, start_time, last_time, intervals in results:
     log_msg(
         f"Completing chore {name} with id {chore_id} for the first time at {start_time}."
     )
-    dbm.complete_chore(chore_id, start_time)
+    dbm.record_completion(chore_id, start_time, "")
     this_time = start_time
     for interval in intervals:
         this_time += interval
         log_msg(f"Completing chore {name} at {this_time}.")
-        dbm.complete_chore(chore_id, this_time)
+        dbm.record_completion(chore_id, this_time, "")
     log_msg(f"Added {len(intervals) + 1} intervals for {name}.")
     # sleep(0.5)

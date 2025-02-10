@@ -30,7 +30,7 @@ from typing import List
 from textual.containers import Container
 
 # from textual.widgets import Static, Input
-from .common import log_msg, display_messages, COLORS
+from .common import log_msg, display_messages, COLORS, fmt_dt, fmt_td, truncate_string
 
 HEADER_COLOR = NAMED_COLORS["LightSkyBlue"]
 TITLE_COLOR = NAMED_COLORS["Cornsilk"]
@@ -59,6 +59,29 @@ HelpText = """\
     - **ESC**: Return to the list view.
 
 ### List View Details
+
+When a chore is completed for the first time, ChoreMate records the user provided datetime of the completion as the *last* completion datetime. Thereafter, when a chore is completed, ChoreMate first prompts for the datetime the chore was actually completed and then prompts for the datetime that the chore actually needed to be completed. Normally these would be the same and, if this is the case, the user can simply press Enter to accept the completion datetime as the value for the needed datetime as well. 
+
+But the completion and needed datetimes are not necessarily the same. If, for example, the chore is to fill the bird feeders when they are empty, then the completion datetime would be when the feeders are filled, but the needed datetime would be when the feeders became empty. Suppose I noticed that the feeders were empty yesterday at 3pm, but I didn't get around to filling them until 10am today. Then I would enter 10am today as the completion datetime in response to the first prompt and 3pm yesterday in response to the second prompt. Alternatively, if I'm going to be away for a while and won't be able to fill the bird feeders while I'm gone and they are currently half full, then I might fill them now in the hope that they will not be emptied before I return. In this case I would use the current moment as the *completion* datetime. But what about the *needed* datetime? Entering a needed datetime would require me to estimate when the feeders would have become empty. While I could do this, I could also just enter "none". Here's how the different responses would be processed by ChoreMate:
+
+1. Both completion and needed datetimes are provided (but will be the same if the user accepts the default):
+
+    a. the interval `needed_completion - last_completion` is added to the list of *completion intervals* for this chore.
+
+    b. from this list of *completion intervals*, the mean (average) and two measures of dispersion about the mean are calculated and used to forecast the next completion datetime and to determine the "hotness" color of the chore in the list view.
+
+    c. `last_completion` is updated to the value of the submitted *completion datetime* to set the beginning of the next interval. The mean interval is added to this datetime to get the forecast of the next completion datetime. 
+
+2. A completion datetime and "none" are provided:
+
+    a. skipped
+
+    b. previous mean and dispersion measures are unchanged
+
+    c. `last_completion` is updated to the value of the submitted *completion datetime* to set the beginning of the next interval. The mean interval is added to this datetime to get the forecast of the next completion datetime. 
+
+Submitting "none" for the needed datetime can be used when the user can't be sure when the completion was or will be needed. 
+
 
 When a chore is completed, ChoreMate records the *interval* between this and the previous completion and then updates the value of the last completion. The updated last completion is displayed in the **last** column of the list view. The mean or average of the recorded intervals for the chore is then added to the last completion to get a forecast of when the next completion will likely be needed. This forecast is displayed in the **next** column of the list view. The chores in list view are sorted by **next**.
 
@@ -232,27 +255,30 @@ class AddChoreScreen(ModalScreen):
 class DateInputScreen(ModalScreen):
     """Screen for entering a completion datetime."""
 
-    def __init__(self, controller, chore_id, chore_name):
+    def __init__(
+        self,
+        controller,
+        chore_id,
+        chore_name,
+        second_datetime: bool = False,
+        prompt="Enter completion date:",
+    ):
         super().__init__()
         self.controller = controller
         self.chore_id = chore_id
         self.chore_name = chore_name
+        self.prompt = prompt  # Dynamic prompt message
         self.parsed_date = None  # Holds valid parsed datetime
-
-    def compose(self) -> ComposeResult:
-        """Create UI elements."""
-        yield Static(f"Enter completion date for: {self.chore_name}", id="title")
-        yield Input(placeholder="YYYY-MM-DD HH:MM", id="date_input")
-        yield Static("", id="validation_message")  # Feedback message
-        yield Static(
-            "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel",
-            id="instructions",
-        )  # Feedback message
+        self.second_datetime = second_datetime
+        self.was_escaped = False  # Tracks whether escape was pressed
 
     def compose(self) -> ComposeResult:
         """Create UI elements with a fixed footer."""
         with Container(id="content"):  # Content container
-            yield Static(f"Enter completion date for: {self.chore_name}", id="title")
+            yield Static(
+                f'Recording completion for "{self.chore_name}".\n{self.prompt}',
+                id="date_title",
+            )
             yield Input(placeholder="datetime expression", id="date_input")
             yield Static("", id="validation_message")  # Feedback message
 
@@ -265,14 +291,23 @@ class DateInputScreen(ModalScreen):
     def on_mount(self) -> None:
         """Ensure the footer is styled properly."""
         footer = self.query_one("#footer", Static)
-        # footer.styles.align = "center"
         footer.styles.margin_top = 1  # Ensures space between content and footer
 
     def validate_date(self, date_str: str) -> str:
         """Try to parse the entered date."""
+        log_msg(f"{date_str = }")
+        if self.second_datetime:
+            if not date_str.strip():  # Allow empty input, return empty string
+                self.parsed_date = ""
+                return (
+                    "[yellow]No needed date entered; default behavior applied.[/yellow]"
+                )
+            if date_str.strip().lower() == "none":  # Allow "none" input
+                self.parsed_date = "none"
+                return "[yellow]Omitting interval for this completion.[/yellow]"
         try:
             self.parsed_date = parse(date_str)  # Parse the date
-            return f"[green]Recognized: {self.parsed_date.strftime('%Y-%m-%d %H:%M')}[/green]"
+            return f"[green]Recognized: {self.parsed_date.strftime('%Y-%m-%d %H:%M (%A)')}[/green]"
         except ParserError:
             self.parsed_date = None
             return "[red]Invalid format! Try again.[/red]"
@@ -284,13 +319,30 @@ class DateInputScreen(ModalScreen):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle Enter key submission."""
-        if event.input.id == "date_input" and self.parsed_date:
-            self.dismiss(self.parsed_date)  # Return parsed datetime
+        log_msg(f"{event.input.id = }, {event.value = }, {self.was_escaped = }")
+        if self.was_escaped:  # Prevent handling if escape was pressed
+            return
+
+        if event.input.id == "date_input":
+            input_value = event.value.strip()
+            if input_value.lower() == "none":
+                self.dismiss(None)  # Explicitly discard the interval
+            elif input_value == "":
+                self.dismiss("")  # Explicitly return empty string (use default)
+            else:
+                try:
+                    parsed_date = parse(input_value)
+                    self.dismiss(parsed_date)  # Return the parsed datetime
+                except ParserError:
+                    self.dismiss(None)  # Should not happen due to validation
 
     def on_key(self, event):
         """Handle key presses for cancellation."""
         if event.key == "escape":
-            self.dismiss(None)  # Close without completing
+            self.was_escaped = True  # Track that escape was pressed
+            self.notify("Completion cancelled.", severity="warning")
+            log_msg(f"{self.was_escaped = }")
+            self.dismiss("_ESCAPED_")  # Return a special marker to detect escape
 
 
 class DetailsScreen(Screen):
@@ -400,15 +452,15 @@ class FullScreenList(Screen):
             self.title = "Untitled"
             self.lines = []
         self.footer_content = footer_content
-        log_msg(f"FullScreenList: {details[:3] = }")
+        # log_msg(f"FullScreenList: {details[:3] = }")
 
     def compose(self) -> ComposeResult:
         """Compose the layout."""
         width = shutil.get_terminal_size().columns - 3
         self.virtual_size = Size(width, len(self.lines))
-        log_msg(
-            f"FullScreenList: {self.title = }, {len(self.title) = },  {self.lines[:3] = }"
-        )
+        # log_msg(
+        #     f"FullScreenList: {self.title = }, {len(self.title) = },  {self.lines[:3] = }"
+        # )
         yield Static(self.title, id="scroll_title", expand=True)
         yield Static(
             Rule("", style="#fff8dc"), id="separator"
@@ -450,7 +502,7 @@ class TextualView(App):
         """Save a screenshot of the current app state."""
         screenshot_path = f"{self.view}_screenshot.svg"
         self.save_screenshot(screenshot_path)
-        log_msg(f"Screenshot saved to: {screenshot_path}")
+        self.notify(f"Screenshot saved to: {screenshot_path}", severity="info")
 
     # def action_add_chore(self):
     #     """Add a new chore."""
@@ -464,6 +516,7 @@ class TextualView(App):
                 self.notify(
                     f"Chore '{chore_name}' added successfully!", severity="success"
                 )
+                self.action_show_list()  # Refresh the list view
             else:
                 self.notify("Chore addition cancelled.", severity="warning")
 
@@ -483,10 +536,11 @@ class TextualView(App):
 
     def action_show_chore(self, tag: str):
         """Show details for a selected chore."""
-        chore_id, name, details = self.controller.show_chore(tag)
+        chore_id, name, last_completion, details = self.controller.show_chore(tag)
         self.selected_chore = chore_id
         self.selected_name = name
         self.selected_tag = tag
+        self.last_completion = last_completion
         self.view = "details"  # Track that we're in the details view
         self.push_screen(DetailsScreen(details))
 
@@ -505,31 +559,115 @@ class TextualView(App):
         except LookupError:
             log_msg("Footer not found to update.")
 
+    # def action_complete_chore(self):
+    #     """Prompt the user for a completion datetime."""
+    #     if not self.selected_chore:
+    #         self.notify("No chore selected!", severity="warning")
+    #         return
+    #
+    #     def on_close(parsed_date):
+    #         """Handle the result of the date input screen."""
+    #         if parsed_date:
+    #             log_msg(
+    #                 f"{self.selected_chore = }, {parsed_date = }, {type(parsed_date) = }"
+    #             )
+    #             self.controller.complete_chore(
+    #                 self.selected_chore, self.selected_name, parsed_date
+    #             )
+    #             self.notify(
+    #                 f"{self.selected_name} completed at {parsed_date.strftime('%Y-%m-%d %H:%M')}",
+    #                 severity="success",
+    #             )
+    #             # self.action_show_list()  # Refresh the list view
+    #             self.action_show_chore(self.selected_tag)  # Refresh the list view
+    #
+    #     self.push_screen(
+    #         DateInputScreen(self.controller, self.selected_chore, self.selected_name),
+    #         callback=on_close,
+    #     )
+
     def action_complete_chore(self):
-        """Prompt the user for a completion datetime."""
+        """Prompt the user for completion and needed datetimes."""
+        completion_fmt = needed_fmt = ""
         if not self.selected_chore:
             self.notify("No chore selected!", severity="warning")
             return
 
-        def on_close(parsed_date):
-            """Handle the result of the date input screen."""
-            if parsed_date:
-                log_msg(
-                    f"{self.selected_chore = }, {parsed_date = }, {type(parsed_date) = }"
+        def on_completion_close(completion_datetime):
+            """Handle first datetime input."""
+            log_msg(f"{self.selected_chore = }, {completion_datetime = }")
+            if completion_datetime is None:
+                return  # User canceled
+
+            if isinstance(completion_datetime, datetime):
+                completion_datetime = round(completion_datetime.timestamp())
+
+            def on_needed_close(needed_datetime):
+                """Handle second datetime input correctly."""
+                log_msg(f"starting on_needed_close {needed_datetime = }")
+                if needed_datetime == "_ESCAPED_":
+                    log_msg("Escape detected! Cancelling completion.")
+                    return  # Stop the process, do NOT record completion
+                if needed_datetime is None:
+                    needed_datetime = ""  # default behavior
+                elif isinstance(needed_datetime, str):
+                    if needed_datetime.strip().lower() == "none":
+                        needed_datetime = "none"  # No interval recorded
+                    elif needed_datetime.strip() == "first":
+                        needed_datetime = "none"  # No interval recorded
+
+                # Normalize input: distinguish "none" from empty string
+                elif isinstance(needed_datetime, datetime):
+                    needed_datetime = round(needed_datetime.timestamp())
+
+                # ✅ Ensure record_completion is called with all required arguments
+                self.controller.record_completion(
+                    self.selected_chore, completion_datetime, needed_datetime
                 )
-                self.controller.complete_chore(
-                    self.selected_chore, self.selected_name, parsed_date
-                )
+
                 self.notify(
-                    f"{self.selected_name} completed at {parsed_date.strftime('%Y-%m-%d %H:%M')}",
+                    f'Recorded completion for "{self.selected_name}"',
                     severity="success",
                 )
-                # self.action_show_list()  # Refresh the list view
-                self.action_show_chore(self.selected_tag)  # Refresh the list view
 
+                # Refresh the view
+                self.action_show_chore(self.selected_tag)
+
+            # ✅ Make sure the second screen passes its result to on_needed_close
+            if self.last_completion:
+                # this is not the first completion so we can calculate the interval
+                self.push_screen(
+                    DateInputScreen(
+                        self.controller,
+                        self.selected_chore,
+                        self.selected_name,
+                        True,
+                        "\n".join(
+                            [
+                                f"You completed the chore at {fmt_dt(completion_datetime, False)}.",
+                                "Did the chore need to be completed at this same time?",
+                                "1. If yes, enter nothing.",
+                                "2. If no, either enter the needed datetime or",
+                                '3. enter "none" to skip recording the prior interval.',
+                            ]
+                        ),
+                    ),
+                    callback=on_needed_close,  # ✅ Correctly passing the callback
+                )
+            else:
+                # this is the first completion so we can't calculate the interval
+                on_needed_close("first")
+
+        # ✅ Ensure the first screen passes its result to on_completion_close
         self.push_screen(
-            DateInputScreen(self.controller, self.selected_chore, self.selected_name),
-            callback=on_close,
+            DateInputScreen(
+                self.controller,
+                self.selected_chore,
+                self.selected_name,
+                False,
+                "Enter the datetime the chore was completed:",
+            ),
+            callback=on_completion_close,  # ✅ Correctly passing the callback
         )
 
     def action_delete_chore(self):

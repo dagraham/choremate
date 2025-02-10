@@ -68,7 +68,6 @@ class Controller:
         self.tag_to_id = {}
         self.chore_names = []
         self.afill = 1
-        log_msg("Controller initialized.")
 
     def is_chore_unique(self, name: str):
         return name not in self.chore_names
@@ -82,9 +81,10 @@ class Controller:
 
         chores = self.db_manager.list_chores()
         self.afill = 1 if len(chores) < 26 else 2 if len(chores) < 676 else 3
-        log_msg(f"Found {len(chores)}: {chores}")
         if not chores:
-            return "No chores found."
+            return [
+                "No chores found.",
+            ]
 
         table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
@@ -128,9 +128,9 @@ class Controller:
                 else:
                     slot_num = 0
                     row_color = COLORS[3] if now < chore[8] else COLORS[5]
-                log_msg(
-                    f"next: {now  < chore[8] = }, {fmt_dt(chore[8], False) = }, {chore[6] = }, {slot_num = }, {row_color = }"
-                )
+                # log_msg(
+                #     f"next: {now  < chore[8] = }, {fmt_dt(chore[8], False) = }, {chore[6] = }, {slot_num = }, {row_color = }"
+                # )
             elif chore[4]:
                 # this uses color 0 - one completion - active but no basis for prediction
                 row_color = COLORS[0]
@@ -170,9 +170,10 @@ class Controller:
             "num_intervals",
         ]
         chore_name = record[1]
+        last_completion = record[4]
         results = [f"[bold]Details for tag [yellow]{tag}[/yellow][/bold]"]
         for field, value in zip(fields, record):
-            log_msg(f"{field}: {value}")
+            # log_msg(f"{field}: {value}")
             field_fmt = f"[bold #87cefa]{field}[/bold #87cefa]"
             if field in (
                 "created",
@@ -186,23 +187,27 @@ class Controller:
             results.append(f"  {field_fmt}: [not bold]{value}[/not bold]")
 
             # return chore_id, "\n".join(results)
-            log_msg(f"returing chore_id: {chore_id}, chore_name: {chore_name}")
-        return chore_id, chore_name, results
+            # log_msg(f"returing chore_id: {chore_id}, chore_name: {chore_name}")
+        return chore_id, chore_name, last_completion, results
 
     def add_chore(self, name, created: int = round(datetime.now().timestamp())):
         self.db_manager.add_chore(name, created)
-        log_msg(f"Chore '{name}' added successfully.")
+        # log_msg(f"Chore '{name}' added successfully.")
 
-    def complete_chore(
+    def record_completion(
         self,
         chore_id,
-        chore_name,
-        completion_datetime: int = round(datetime.now().timestamp()),
+        completion_datetime,
+        needed_datetime,
     ):
         if type(completion_datetime) is datetime:
             completion_datetime = round(completion_datetime.timestamp())
-        log_msg(f"Completing chore {chore_id} at {fmt_dt(completion_datetime)}.")
-        self.db_manager.complete_chore(chore_id, completion_datetime)
+        if type(needed_datetime) is datetime:
+            needed_datetime = round(needed_datetime.timestamp())
+        # log_msg(f"Completing chore {chore_id} at {fmt_dt(completion_datetime)}.")
+        self.db_manager.record_completion(
+            chore_id, completion_datetime, needed_datetime
+        )
         return f"Chore {chore_id} completed successfully."
 
     def remove_chore(self, tag):

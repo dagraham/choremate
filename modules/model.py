@@ -55,7 +55,7 @@ class DatabaseManager:
         self.cursor.execute("DELETE FROM Chores WHERE chore_id = ?", (chore_id,))
         self.conn.commit()
 
-    def complete_chore(self, chore_id, completion_datetime):
+    def record_completion(self, chore_id, completion_datetime, needed_datetime):
         self.cursor.execute(
             "SELECT chore_id, last_completion FROM Chores WHERE chore_id = ?",
             (chore_id,),
@@ -67,19 +67,30 @@ class DatabaseManager:
             return
 
         chore_id, last_completion = chore
+        # completed
         if isinstance(completion_datetime, datetime):
             completion_datetime = round(completion_datetime.timestamp())
 
+        # needed
+        if isinstance(needed_datetime, datetime):
+            needed_datetime = round(needed_datetime.timestamp())
+        elif isinstance(needed_datetime, str):
+            if needed_datetime.strip() == "":
+                needed_datetime = completion_datetime
+            elif needed_datetime.strip().lower() == "none":
+                needed_datetime = "none"
+
         log_msg(
-            f"*Completing chore {chore_id} at {completion_datetime}, {type(completion_datetime) = }."
+            f"*Completing chore {chore_id} at {completion_datetime = }, {needed_datetime = }."
         )
 
         if last_completion:
-            interval = completion_datetime - last_completion
-            self.cursor.execute(
-                "INSERT INTO Intervals (chore_id, interval) VALUES (?, ?)",
-                (chore_id, interval),
-            )
+            if needed_datetime != "none":
+                interval = needed_datetime - last_completion
+                self.cursor.execute(
+                    "INSERT INTO Intervals (chore_id, interval) VALUES (?, ?)",
+                    (chore_id, interval),
+                )
 
             self.cursor.execute(
                 "SELECT interval FROM Intervals WHERE chore_id = ?", (chore_id,)
