@@ -145,7 +145,7 @@ def fmt_dt(dt: int, short=True):
     '2021-01-11 00:00:00'
     """
     # log_msg(f"dt: {dt}")
-    fmt = "%y-%m-%d" if short else "%Y-%m-%d %H:%M"
+    fmt = "%b %-d %-H:%M" if short else "%y-%m-%d %H:%M"
     if type(dt) is not int:
         return "?"
     if dt <= 0:

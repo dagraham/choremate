@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from modules.controller import Controller
 from modules.view import ClickView
 from modules.view_textual import TextualView

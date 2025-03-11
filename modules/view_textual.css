@@ -4,7 +4,7 @@ Screen {
 #details_title, #list_title {
     color: #fff8dc;
     text-style: bold; /* Make the text bold */
-    text-align: left; /* Center align the text */
+    text-align: center; /* Center align the text */
 }
 #scroll_title {
     color: #fff8dc;

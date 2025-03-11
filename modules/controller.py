@@ -86,17 +86,17 @@ class Controller:
                 "No chores found.",
             ]
 
+        # 4*2 + 3 + 12 + 6*2 = 35 => name width = width - 35
+        name_width = width - 35
         table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
-        table.add_column("name", width=25, overflow="ellipsis", no_wrap=True)
-        table.add_column("next", justify="center", width=8)
+        table.add_column("name", width=name_width, overflow="ellipsis", no_wrap=True)
+        table.add_column("next", justify="center", width=12)
         table.add_column("mean", justify="center", width=6)
         table.add_column("+/-", justify="center", width=6)
 
-        # 4*2 + 3 + 8 + 6*2 + 1 = 32 => name width = width - 32
-        name_width = width - 32
         results = [
-            f"{'row':^3}  {'name':<{name_width}}  {'next':^8}  {'mean':^6}  {'+/-':^6}",
+            f"{'row':^3}  {'name':<{name_width}}   {'next':^12}  {'avg':^6}  {'+/-':^6}",
         ]
 
         # chore_id: 0,  name: 1, created: 2, first_completion: 3, last_completion: 4,
@@ -142,9 +142,9 @@ class Controller:
                 [
                     f"[dim]{tag:^3}[/dim]",
                     f"[{row_color}]{name:<{name_width}}[/{row_color}]",
-                    f"[{row_color}]{fmt_dt(chore[8]):<8}[/{row_color}]",
+                    f"[{row_color}]{fmt_dt(chore[8]):<12}[/{row_color}]",
                     f"[{row_color}]{fmt_td(chore[5]):^6}[/{row_color}]",
-                    f"[{row_color}]{fmt_td(2 * (chore[6] + chore[7])):^6}[/{row_color}]",
+                    f"[{row_color}]{fmt_td(2 * (chore[6] + chore[7])):>6}[/{row_color}]",
                 ]
             )
             results.append(row)
@@ -171,7 +171,7 @@ class Controller:
         ]
         chore_name = record[1]
         last_completion = record[4]
-        results = [f"[bold]Details for tag [yellow]{tag}[/yellow][/bold]"]
+        results = [f"[bold]Row [yellow]{tag}[/yellow] details[/bold]"]
         for field, value in zip(fields, record):
             # log_msg(f"{field}: {value}")
             field_fmt = f"[bold #87cefa]{field}[/bold #87cefa]"
@@ -184,7 +184,7 @@ class Controller:
                 value = fmt_dt(value, False)
             elif field in ("mean_interval", "mad_less", "mad_more"):
                 value = fmt_td(value, False)
-            results.append(f"  {field_fmt}: [not bold]{value}[/not bold]")
+            results.append(f"{field_fmt}: [not bold]{value}[/not bold]")
 
             # return chore_id, "\n".join(results)
             # log_msg(f"returing chore_id: {chore_id}, chore_name: {chore_name}")
