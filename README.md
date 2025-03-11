@@ -3,11 +3,6 @@
   <div style="flex: 1;">
 <H1>choremate</H1>
 <p><b>choremate</b> is a simple application for tracking the sequence of occasions on which a task is completed and predicting when the next completion will likely be needed.
-  </div>
-  <div style="flex: 0; padding-left: 10px; padding-right: 6px;">
-    <img src="tracker.png" alt="" style="max-width: 140px;">
-  </div>
-</div>
 
 ### Usage
 
