@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from modules.controller import Controller
-from modules.view import ClickView
-from modules.view_textual import TextualView
+from modules.common import log_msg
+
+# from modules.view import ClickView
+from modules.view import TextualView
 import os
 import sys
 import json
@@ -26,6 +28,7 @@ def process_arguments() -> tuple:
             userhome = os.path.expanduser("~")
             choremate_home = os.path.join(userhome, ".choremate_home/")
 
+    screenshot_dir = os.path.join(choremate_home, "screenshots")
     # backup_dir = os.path.join(choremate_home, "backup")
     # log_dir = os.path.join(choremate_home, "logs")
     reset = False
@@ -41,6 +44,7 @@ def process_arguments() -> tuple:
         os.makedirs(choremate_home, exist_ok=True)
         db_path = os.path.join(choremate_home, "choremate.db")
 
+    os.makedirs(screenshot_dir, exist_ok=True)
     # os.makedirs(backup_dir, exist_ok=True)
     # os.makedirs(log_dir, exist_ok=True)
     # os.makedirs(markdown_dir, exist_ok=True)
@@ -54,9 +58,8 @@ choremate_home, db_path, reset = process_arguments()
 
 
 def main():
-    print(f"Using database: {db_path}, reset: {reset}")
+    log_msg(f"Using database: {db_path}, reset: {reset}")
     controller = Controller(db_path, reset=reset)
-    # view = ClickView(controller)
     view = TextualView(controller)
     view.run()
 

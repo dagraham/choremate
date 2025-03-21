@@ -2,6 +2,7 @@
 
 ## Database Design
 
+[1;35mFullScreenList[0m[1m([0m[1m)[0m
 I need a python file, model.py, for a new application that would use sqlite3 to manage the datastore with this setup:
 
 - Table: Chores

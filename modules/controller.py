@@ -86,17 +86,17 @@ class Controller:
                 "No chores found.",
             ]
 
-        # 4*2 + 3 + 12 + 6*2 = 35 => name width = width - 35
-        name_width = width - 35
+        # 4*2 + 3 + 9 + 6*2 = 32 => name width = width - 32
+        name_width = width - 32
         table = Table(title="Chores", expand=True, box=HEAVY_EDGE)
         table.add_column("row", justify="center", width=3, style="dim")
         table.add_column("name", width=name_width, overflow="ellipsis", no_wrap=True)
-        table.add_column("next", justify="center", width=12)
+        table.add_column("next", justify="center", width=9)
         table.add_column("mean", justify="center", width=6)
         table.add_column("+/-", justify="center", width=6)
 
         results = [
-            f"{'row':^3}  {'name':<{name_width}}   {'next':^12}  {'avg':^6}  {'+/-':^6}",
+            f"{'row':^3}  {'name':<{name_width}}   {'next':^9}  {'avg':^6}  {'+/-':^6}",
         ]
 
         # chore_id: 0,  name: 1, created: 2, first_completion: 3, last_completion: 4,
@@ -105,6 +105,12 @@ class Controller:
         for idx, chore in enumerate(chores):
             self.chore_names.append(chore[1])
             tag = indx_to_tag(idx, self.afill)
+            next = ""
+            if chore[8]:
+                now = round(datetime.now().timestamp())
+                sign = "" if now < chore[8] else "-"
+                next = f"{sign}{fmt_td(abs(chore[8] - now), True)}"
+                # log_msg(f"next: {next = }, {chore[8] = }")
             self.tag_to_id[tag] = chore[0]
             if chore[8]:
                 # these use colors 1, 2, ..., 7
@@ -142,9 +148,10 @@ class Controller:
                 [
                     f"[dim]{tag:^3}[/dim]",
                     f"[{row_color}]{name:<{name_width}}[/{row_color}]",
-                    f"[{row_color}]{fmt_dt(chore[8]):<12}[/{row_color}]",
+                    # f"[{row_color}]{fmt_dt(chore[8]):<12}[/{row_color}]",
+                    f"[{row_color}]{next:^9}[/{row_color}]",
                     f"[{row_color}]{fmt_td(chore[5]):^6}[/{row_color}]",
-                    f"[{row_color}]{fmt_td(2 * (chore[6] + chore[7])):>6}[/{row_color}]",
+                    f"[{row_color}]{fmt_td(2 * chore[6] + 2 * chore[7]):>6}[/{row_color}]",
                 ]
             )
             results.append(row)
@@ -154,7 +161,7 @@ class Controller:
     def show_chore(self, tag):
         chore_id = self.tag_to_id.get(tag)
         if not chore_id:
-            return None, None, [f"There is no item corresponding to tag '{tag}'."]
+            return None, None, [f"There is no item corresponding to tag '{tag}'."], []
 
         record = self.db_manager.show_chore(chore_id)
         fields = [
@@ -173,7 +180,6 @@ class Controller:
         last_completion = record[4]
         results = [f"[bold]Row [yellow]{tag}[/yellow] details[/bold]"]
         for field, value in zip(fields, record):
-            # log_msg(f"{field}: {value}")
             field_fmt = f"[bold #87cefa]{field}[/bold #87cefa]"
             if field in (
                 "created",
@@ -186,13 +192,10 @@ class Controller:
                 value = fmt_td(value, False)
             results.append(f"{field_fmt}: [not bold]{value}[/not bold]")
 
-            # return chore_id, "\n".join(results)
-            # log_msg(f"returing chore_id: {chore_id}, chore_name: {chore_name}")
         return chore_id, chore_name, last_completion, results
 
     def add_chore(self, name, created: int = round(datetime.now().timestamp())):
         self.db_manager.add_chore(name, created)
-        # log_msg(f"Chore '{name}' added successfully.")
 
     def record_completion(
         self,

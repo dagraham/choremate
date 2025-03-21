@@ -73,44 +73,11 @@ def process_items(items):
 
 
 items = []
-# items = [
-#     (timedelta(days=2), timedelta(hours=1), 7),
-#     (timedelta(days=3), timedelta(hours=1), 7),
-#     (timedelta(days=4), timedelta(hours=1), 7),
-#     (timedelta(days=5), timedelta(hours=1), 7),
-#     (timedelta(days=6), timedelta(hours=2), 7),
-#     (timedelta(days=7), timedelta(hours=2), 7),
-#     (timedelta(days=8), timedelta(hours=2), 7),
-#     (timedelta(days=9), timedelta(hours=2), 7),
-#     (timedelta(days=10), timedelta(hours=3), 7),
-#     (timedelta(days=11), timedelta(hours=3), 7),
-#     (timedelta(days=12), timedelta(hours=3), 7),
-#     (timedelta(days=13), timedelta(hours=3), 7),
-#     (timedelta(days=14), timedelta(hours=3), 7),
-# ]
-#
-for i in range(24):
+for i in range(12):
     days = random.randint(1, 14)
     hours = days + random.randint(0, 6)
     count = random.randint(1, 10)
     items.append((timedelta(days=days, hours=hours), timedelta(hours=hours), count))
-
-
-# # Example usage:
-# items = [
-#     (timedelta(days=2), timedelta(hours=4), 8),
-#     (timedelta(days=3), timedelta(hours=8), 7),
-#     (timedelta(days=4), timedelta(hours=12), 7),
-#     (timedelta(days=5), timedelta(hours=16), 10),
-#     (timedelta(days=6), timedelta(hours=18), 7),
-#     (timedelta(days=7), timedelta(hours=24), 30),
-#     (timedelta(days=9), timedelta(hours=24), 6),
-#     (timedelta(days=10), timedelta(hours=28), 7),
-#     (timedelta(days=11), timedelta(hours=30), 10),
-#     (timedelta(days=12), timedelta(hours=32), 8),
-#     (timedelta(days=13), timedelta(hours=36), 7),
-#     (timedelta(days=14), timedelta(hours=36), 4),
-# ]
 
 results = process_items(items)
 # sorted_results = sorted(results, key=lambda x: x[1])
