@@ -1,13 +1,17 @@
-Recent tagged changes as of 2025-03-21 15:22:08.316493:
-- 0 seconds ago (HEAD -> working, tag: 0.0.1) Daniel Graham
+Recent tagged changes as of 2025-03-25 10:03:23.728563:
+- 0 seconds ago (HEAD -> working, tag: 0.0.2) Daniel Graham
+    2ef2aae 2025-03-25 10:03:23 -0400
+    Tagged version 0.0.2.
+
+- 4 days ago (tag: 0.0.1) Daniel Graham
     999d626 2025-03-21 15:22:08 -0400
     Tagged version 0.0.1.
 
-- 5 months ago (tag: 0.0.25) Daniel Graham
+- 6 months ago (tag: 0.0.25) Daniel Graham
     351c092 2024-10-10 15:37:40 -0400
     Tagged version 0.0.25.
 
-- 5 months ago (tag: 0.0.24) Daniel Graham
+- 6 months ago (tag: 0.0.24) Daniel Graham
     54b37d7 2024-10-10 13:08:15 -0400
     Tagged version 0.0.24.
 
@@ -74,7 +78,3 @@ Recent tagged changes as of 2025-03-21 15:22:08.316493:
 - 6 months ago (tag: 0.0.8) Daniel Graham
     15cf059 2024-09-15 10:35:27 -0400
     Tagged version 0.0.8.
-
-- 6 months ago (tag: 0.0.7) Daniel Graham
-    ed42469 2024-09-15 06:58:44 -0400
-    Tagged version 0.0.7.
