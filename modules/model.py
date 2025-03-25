@@ -52,6 +52,7 @@ class DatabaseManager:
         return new_chore_id  # Return the ID to the caller
 
     def remove_chore(self, chore_id):
+        log_msg(f"Removing chore {chore_id}.")
         self.cursor.execute("DELETE FROM Chores WHERE chore_id = ?", (chore_id,))
         self.conn.commit()
 
@@ -151,6 +152,20 @@ class DatabaseManager:
         )
         self.conn.commit()
 
+    def list_intervals(self, chore_id):
+        """Retrieve all intervals for a given chore_id."""
+        self.cursor.execute(
+            """
+            SELECT interval_id, interval FROM Intervals
+            WHERE chore_id = ?
+            ORDER BY interval_id DESC
+        """,
+            (chore_id,),
+        )
+
+        return self.cursor.fetchall()
+        # return [row[0] for row in self.cursor.fetchall()]
+
     def list_chores(self):
         self.cursor.execute("""
             SELECT chore_id, name, created, first_completion, last_completion, mean_interval, mad_less, mad_more, next, (SELECT COUNT(*) FROM Intervals WHERE Intervals.chore_id = Chores.chore_id) AS num_completions
@@ -168,6 +183,32 @@ class DatabaseManager:
             (name,),
         )
         return self.cursor.fetchone()
+
+    def remove_interval(self, interval_id):
+        """Delete a specific interval entry by interval_id."""
+        self.cursor.execute(
+            "DELETE FROM intervals WHERE interval_id = ?", (interval_id,)
+        )
+        self.conn.commit()
+
+    def get_interval(self, interval_id):
+        """Retrieve the interval timestamp for a given interval_id."""
+        self.cursor.execute(
+            "SELECT interval FROM intervals WHERE interval_id = ?",
+            (interval_id,),
+        )
+        result = self.cursor.fetchone()
+
+        return result[0] if result else None  # Return timestamp or None if not found
+
+    def update_interval(self, interval_id: int, new_timestamp: int):
+        """Update a interval's timestamp given its interval_id."""
+
+        self.cursor.execute(
+            "UPDATE intervals SET interval = ? WHERE interval_id = ?",
+            (new_timestamp, interval_id),
+        )
+        self.conn.commit()
 
     def close(self):
         self.conn.close()

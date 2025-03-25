@@ -5,6 +5,7 @@ import shutil
 from rich.markdown import Markdown
 from rich.console import Console
 import os
+import re
 
 ELLIPSIS_CHAR = "…"
 
@@ -94,6 +95,74 @@ def display_messages(file_path: str = "log_msg.md"):
         console.print(markdown)
     except FileNotFoundError:
         print(f"Error: Log file '{file_path}' not found.")
+
+
+def time_to_seconds(time_str: str) -> int:
+    """
+    Converts a time string composed of integers followed by 'w', 'd', 'h', or 'm'
+    into the total number of seconds.
+
+    Args:
+        time_str (str): The time string (e.g., '3h15s').
+
+    Returns:
+        int: The total number of seconds.
+
+    Raises:
+        ValueError: If the input string is not in the expected format.
+    """
+    # Define time multipliers for each unit
+    multipliers = {
+        "w": 7 * 24 * 60 * 60,  # Weeks to seconds
+        "d": 24 * 60 * 60,  # Days to seconds
+        "h": 60 * 60,  # Hours to seconds
+        "m": 60,  # Minutes to seconds
+    }
+
+    # Match all integer-unit pairs (e.g., "3h", "15s")
+    matches = re.findall(r"(\d+)([wdhm])", time_str)
+
+    if not matches:
+        raise ValueError(
+            "Invalid time string format. Expected integers followed by 'w', 'd', 'h', or 'm'."
+        )
+
+    # Convert each match to seconds and sum them
+    total_seconds = sum(int(value) * multipliers[unit] for value, unit in matches)
+    return total_seconds
+
+
+def seconds_to_time(seconds: int) -> str:
+    """
+    Converts an integer number of seconds into a human-readable time string
+    using days, hours, minutes, and seconds.
+
+    Args:
+        seconds (int): The total number of seconds.
+
+    Returns:
+        str: A time string (e.g., '3h15s', '2d5h', etc.).
+    """
+    if seconds < 0:
+        raise ValueError("Seconds must be non-negative.")
+
+    # Define time units in seconds
+    time_units = {
+        "w": 7 * 24 * 60 * 60,  # Weeks to seconds
+        "d": 24 * 60 * 60,  # Days to seconds
+        "h": 60 * 60,  # Hours to seconds
+        "m": 60,  # Minutes to seconds
+    }
+
+    # Compute the number of each unit
+    result = []
+    for unit, value in time_units.items():
+        if seconds >= value:
+            count = seconds // value
+            seconds %= value
+            result.append(f"{count}{unit}")
+
+    return "".join(result) or "0m"  # Return '0s' for input 0
 
 
 def fmt_td(seconds: int, short=True):

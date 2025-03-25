@@ -15,6 +15,9 @@ from textual.strip import Strip
 from textual.widgets import Input
 from textual.widgets import Static
 from textual.widgets import Markdown
+from textual.events import Key  # Import Key explicitly
+from textual.containers import Vertical
+from textual.widgets import Label
 
 import string
 import shutil
@@ -28,7 +31,16 @@ from textual.containers import Container
 import asyncio
 from pathlib import Path
 
-from .common import log_msg, display_messages, COLORS, fmt_dt, fmt_td, truncate_string
+from .common import (
+    log_msg,
+    display_messages,
+    COLORS,
+    fmt_dt,
+    fmt_td,
+    seconds_to_time,
+    time_to_seconds,
+    truncate_string,
+)
 
 HEADER_COLOR = NAMED_COLORS["LightSkyBlue"]
 TITLE_COLOR = NAMED_COLORS["Cornsilk"]
@@ -104,97 +116,130 @@ As noted above, the range for Color 4, from -2 to +2 in the diagram, represents 
  """.splitlines()
 
 
-class AddChoreScreen(ModalScreen):
-    """Screen for adding a new chore."""
+class ConfirmScreen(ModalScreen):
+    """A floating modal confirmation screen for goal deletion, using 'Y' or 'N' keys."""
 
-    def __init__(self, controller):
+    def __init__(self, goal_name, on_confirm):
         super().__init__()
-        self.controller = controller
-        self.chore_name = ""
+        self.goal_name = goal_name
+        self.on_confirm = on_confirm  # Callback function when confirmed
 
-    def compose(self) -> ComposeResult:
-        """Create UI elements."""
-        yield Static("Enter the name of the new chore:", id="title")
-        yield Input(placeholder="Chore Name", id="chore_input")
-        yield Static("", id="validation_message")  # Feedback message
-        yield Static(
-            "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel",
-            id="instructions",
-        )  # Feedback message
+    def compose(self):
+        """Create a floating confirmation dialog."""
+        with Vertical(id="confirm-box"):
+            yield Label(
+                f"Are you sure you want to delete '{self.goal_name}'?",
+                id="confirm-text",
+            )
+            yield Label(
+                "Press 'Y' to confirm or 'N' to cancel.", id="confirm-instructions"
+            )
 
-    def validate_chore(self, name: str) -> str:
-        """Check if the chore name is unique."""
-        if name and self.controller.is_chore_unique(name):
-            return f"[green]Valid chore name: {name}[/green]"
-        return "[red]Chore already exists or invalid name![/red]"
+    def on_key(self, event: Key):
+        """Handle key events dynamically for uppercase 'Y' and 'N'."""
+        if event.character == "Y":  # Detect uppercase Y
+            self.dismiss()
+            self.on_confirm()
+        elif event.character == "N":  # Detect uppercase N
+            self.dismiss()
 
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """Validate input and update the feedback message."""
-        validation_message = self.query_one("#validation_message", Static)
-        validation_message.update(self.validate_chore(event.value))
-        self.chore_name = event.value
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle Enter key submission."""
-        if event.input.id == "chore_input" and self.controller.is_chore_unique(
-            self.chore_name
-        ):
-            self.controller.add_chore(self.chore_name)
-            self.dismiss(self.chore_name)  # Confirm and close
-
-    def on_key(self, event):
-        """Handle key presses for cancellation."""
-        if event.key == "escape":
-            self.dismiss(None)  # Close without adding chore
+    def on_mount(self):
+        """Ensure the modal remains centered and floating."""
+        self.styles.layer = "overlay"  # Ensures it floats above everything
+        self.styles.align = ("center", "middle")  # Corrected alignment syntax
 
 
-class AddChoreScreen(ModalScreen):
-    """Screen for adding a new chore."""
+# class AddChoreScreen(ModalScreen):
+#     """Screen for adding a new chore."""
+#
+#     def __init__(self, controller):
+#         super().__init__()
+#         self.controller = controller
+#         self.chore_name = ""
+#
+#     def compose(self) -> ComposeResult:
+#         """Create UI elements."""
+#         yield Static("Enter the name of the new chore:", id="title")
+#         yield Input(placeholder="Chore Name", id="chore_input")
+#         yield Static("", id="validation_message")  # Feedback message
+#         yield Static(
+#             "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel",
+#             id="instructions",
+#         )  # Feedback message
+#
+#     def validate_chore(self, name: str) -> str:
+#         """Check if the chore name is unique."""
+#         if name and self.controller.is_chore_unique(name):
+#             return f"[green]Valid chore name: {name}[/green]"
+#         return "[red]Chore already exists or invalid name![/red]"
+#
+#     def on_input_changed(self, event: Input.Changed) -> None:
+#         """Validate input and update the feedback message."""
+#         validation_message = self.query_one("#validation_message", Static)
+#         validation_message.update(self.validate_chore(event.value))
+#         self.chore_name = event.value
+#
+#     def on_input_submitted(self, event: Input.Submitted) -> None:
+#         """Handle Enter key submission."""
+#         if event.input.id == "chore_input" and self.controller.is_chore_unique(
+#             self.chore_name
+#         ):
+#             self.controller.add_chore(self.chore_name)
+#             self.dismiss(self.chore_name)  # Confirm and close
+#
+#     def on_key(self, event):
+#         """Handle key presses for cancellation."""
+#         if event.key == "escape":
+#             self.dismiss(None)  # Close without adding chore
 
-    def __init__(self, controller):
-        super().__init__()
-        self.controller = controller
-        self.chore_name = ""
 
-    def compose(self) -> ComposeResult:
-        """Create UI elements."""
-        yield Static("Enter the name of the new chore:", id="title")
-        yield Input(placeholder="Chore Name", id="chore_input")
-        yield Static("", id="validation_message")  # Feedback message
-        yield Static("", id="footer")  # Placeholder for footer
-
-    def on_mount(self) -> None:
-        """Set up footer after mounting."""
-        footer = self.query_one("#footer", Static)
-        footer.update(
-            "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel"
-        )
-        # footer.styles.align = "center"
-
-    def validate_chore(self, name: str) -> str:
-        """Check if the chore name is unique."""
-        if name and self.controller.is_chore_unique(name):
-            return f"[green]Valid chore name: {name}[/green]"
-        return "[red]Chore already exists or invalid name![/red]"
-
-    def on_input_changed(self, event: Input.Changed) -> None:
-        """Validate input and update the feedback message."""
-        validation_message = self.query_one("#validation_message", Static)
-        validation_message.update(self.validate_chore(event.value))
-        self.chore_name = event.value
-
-    def on_input_submitted(self, event: Input.Submitted) -> None:
-        """Handle Enter key submission."""
-        if event.input.id == "chore_input" and self.controller.is_chore_unique(
-            self.chore_name
-        ):
-            self.controller.add_chore(self.chore_name)
-            self.dismiss(self.chore_name)  # Confirm and close
-
-    def on_key(self, event):
-        """Handle key presses for cancellation."""
-        if event.key == "escape":
-            self.dismiss(None)  # Close without adding chore
+# class AddChoreScreen(ModalScreen):
+#     """Screen for adding a new chore."""
+#
+#     def __init__(self, controller):
+#         super().__init__()
+#         self.controller = controller
+#         self.chore_name = ""
+#
+#     def compose(self) -> ComposeResult:
+#         """Create UI elements."""
+#         yield Static("Enter the name of the new chore:", id="title")
+#         yield Input(placeholder="Chore Name", id="chore_input")
+#         yield Static("", id="validation_message")  # Feedback message
+#         yield Static("", id="footer")  # Placeholder for footer
+#
+#     def on_mount(self) -> None:
+#         """Set up footer after mounting."""
+#         footer = self.query_one("#footer", Static)
+#         footer.update(
+#             "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel"
+#         )
+#         # footer.styles.align = "center"
+#
+#     def validate_chore(self, name: str) -> str:
+#         """Check if the chore name is unique."""
+#         if name and self.controller.is_chore_unique(name):
+#             return f"[green]Valid chore name: {name}[/green]"
+#         return "[red]Chore already exists or invalid name![/red]"
+#
+#     def on_input_changed(self, event: Input.Changed) -> None:
+#         """Validate input and update the feedback message."""
+#         validation_message = self.query_one("#validation_message", Static)
+#         validation_message.update(self.validate_chore(event.value))
+#         self.chore_name = event.value
+#
+#     def on_input_submitted(self, event: Input.Submitted) -> None:
+#         """Handle Enter key submission."""
+#         if event.input.id == "chore_input" and self.controller.is_chore_unique(
+#             self.chore_name
+#         ):
+#             self.controller.add_chore(self.chore_name)
+#             self.dismiss(self.chore_name)  # Confirm and close
+#
+#     def on_key(self, event):
+#         """Handle key presses for cancellation."""
+#         if event.key == "escape":
+#             self.dismiss(None)  # Close without adding chore
 
 
 class AddChoreScreen(ModalScreen):
@@ -248,6 +293,95 @@ class AddChoreScreen(ModalScreen):
         """Handle key presses for cancellation."""
         if event.key == "escape":
             self.dismiss(None)  # Close without adding chore
+
+
+class IntervalInputScreen(ModalScreen):
+    """Screen for entering an interval timedelta."""
+
+    def __init__(
+        self,
+        controller,
+        chore_id,
+        chore_name,
+        current_interval: int | None = None,
+        prompt="Update interval:",
+    ):
+        super().__init__()
+        self.controller = controller
+        self.chore_id = chore_id
+        self.chore_name = chore_name
+        self.prompt = prompt  # Dynamic prompt message
+        self.parsed_date = None  # Holds valid parsed datetime
+        self.current_interval = current_interval
+        self.was_escaped = False  # Tracks whether escape was pressed
+
+    def compose(self) -> ComposeResult:
+        """Create UI elements with a fixed footer."""
+        with Container(id="content"):  # Content container
+            yield Static(
+                f'Interval for "{self.chore_name}".\n{self.prompt}',
+                id="date_title",
+            )
+            # current_datetime = round(datetime.now().timestamp())
+            if self.current_interval:
+                yield Input(
+                    value=f"{seconds_to_time(self.current_interval)}",
+                    id="interval_input",
+                )
+            else:
+                yield Input(
+                    placeholder="0m",
+                    id="interval_input",
+                )
+            yield Static("", id="validation_message")  # Feedback message
+
+        # Footer explicitly placed at the bottom
+        yield Static(
+            "[bold yellow]Enter[/bold yellow] submit, [bold yellow]ESC[/bold yellow] cancel",
+            id="footer",
+        )
+
+    def on_mount(self) -> None:
+        """Ensure the footer is styled properly."""
+        footer = self.query_one("#footer", Static)
+        footer.styles.margin_top = 1  # Ensures space between content and footer
+
+    def validate_interval(self, td_str: str) -> str:
+        """Try to parse the entered date."""
+        log_msg(f"{td_str = }")
+        try:
+            self.parsed_interval = time_to_seconds(td_str)  # Parse the date
+            return f"[green]Recognized: {seconds_to_time(self.parsed_interval)}[/green]"
+        except ValueError as e:
+            self.parsed_interval = None
+            return "[red]{e}[/red]"
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Validate input and update the feedback message."""
+        validation_message = self.query_one("#validation_message", Static)
+        validation_message.update(self.validate_interval(event.value))
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle Enter key submission."""
+        log_msg(f"{event.input.id = }, {event.value = }, {self.was_escaped = }")
+        if self.was_escaped:  # Prevent handling if escape was pressed
+            return
+
+        if event.input.id == "interval_input":
+            input_value = event.value.strip()
+            try:
+                parsed_interval = time_to_seconds(input_value)
+                self.dismiss(parsed_interval)  # Return the parsed datetime
+            except ParserError:
+                self.dismiss(None)  # Should not happen due to validation
+
+    def on_key(self, event):
+        """Handle key presses for cancellation."""
+        if event.key == "escape":
+            self.was_escaped = True  # Track that escape was pressed
+            self.notify("Completion cancelled.", severity="warning")
+            log_msg(f"{self.was_escaped = }")
+            self.dismiss("_ESCAPED_")  # Return a special marker to detect escape
 
 
 class DateInputScreen(ModalScreen):
@@ -382,6 +516,42 @@ class DetailsScreen(Screen):
         footer = self.query_one("#footer", Static)
         # footer.styles.align = "center"
         footer.styles.margin_top = 1  # Ensures space between content and footer
+
+    def on_key(self, event):
+        if event.key == "escape":
+            self.app.pop_screen()
+
+
+class DetailsScreen(Screen):
+    """A temporary details screen with scrollable content."""
+
+    def __init__(self, details: List[str], markdown: bool = False):
+        super().__init__()
+        self.markdown = markdown
+        self.title = details[0]
+        self.lines = details[1:]
+        self.footer = [
+            "",
+            "[bold yellow]L[/bold yellow] list view, [bold yellow]C[/bold yellow] complete, [bold yellow]D[/bold yellow] delete, [bold yellow]E[/bold yellow] edit",
+        ]
+
+    def compose(self) -> ComposeResult:
+        """Create UI elements with a fixed footer."""
+        yield Static(self.title, id="details_title", classes="title-class")
+
+        if self.markdown:
+            # If markdown, use the Markdown widget directly (not ScrollableList)
+            yield Markdown("\n".join(self.lines), id="details_text")
+        else:
+            # ScrollableList handles long text as scrollable
+            yield ScrollableList(self.lines, id="details_list")
+
+        yield Static("\n".join(self.footer), id="footer")
+
+    def on_mount(self) -> None:
+        """Style the footer spacing."""
+        footer = self.query_one("#footer", Static)
+        footer.styles.margin_top = 1
 
     def on_key(self, event):
         if event.key == "escape":
@@ -549,7 +719,7 @@ class TextualView(App):
     def action_show_list(self):
         # log_msg(f"show_list {timestamp = }")
         self.view = "list"
-        log_msg(f"{self.view = }")
+        # log_msg(f"{self.view = }")
         self.push_screen(FullScreenList(self.details, self.timestamp))
 
     def action_take_screenshot(self):
@@ -593,13 +763,24 @@ class TextualView(App):
 
     def action_show_chore(self, tag: str):
         """Show details for a selected chore."""
-        chore_id, name, last_completion, details = self.controller.show_chore(tag)
+        chore_id, name, last_completion, details, interval_tag_to_idx = (
+            self.controller.show_chore(tag)
+        )
         self.selected_chore = chore_id
         self.selected_name = name
         self.selected_tag = tag
         self.last_completion = last_completion
+        self.interval_tag_to_idx = interval_tag_to_idx
         self.view = "details"  # Track that we're in the details view
         log_msg(f"{self.view = }")
+        self.push_screen(DetailsScreen(details))
+
+    def action_refresh_chore(self):
+        """Show details for a selected chore."""
+        result = self.controller.show_chore(self.selected_chore)
+        log_msg(f"{result = }")
+        chore_id, name, last_completion, details, interval_tag_to_idx = result
+        self.view = "details"  # Track that we're in the details view
         self.push_screen(DetailsScreen(details))
 
     def action_show_help(self):
@@ -704,7 +885,17 @@ class TextualView(App):
 
     def action_delete_chore(self):
         """Delete the currently selected chore."""
-        self.notify("Deleting chore...", severity="warning")
+        if not self.selected_chore:
+            self.notify("No chore selected!", severity="warn bing")
+            return
+        log_msg(f"Deleting chore {self.selected_chore = }")
+        ok, msg = self.controller.remove_chore(self.selected_chore)
+        if ok:
+            self.notify(f"Deleted chore '{self.selected_name}'", severity="success")
+            self.action_update_list()
+            self.action_show_list()
+        else:
+            self.notify(msg, severity="warning")
 
     def action_edit_chore(self):
         """Edit the currently selected chore."""
@@ -740,9 +931,90 @@ class TextualView(App):
                 self.action_delete_chore()
             elif event.key == "E":
                 self.action_edit_chore()
+            # Step 1: Select a interval tag (lowercase letter)
+            elif event.key and event.key in self.interval_tag_to_idx:
+                self.selected_tag = self.interval_tag_to_idx[
+                    event.key
+                ]  # Store selected tag
+                self.notify(
+                    f"Selected interval {self.selected_tag}. Press 'u' to update or 'r' to remove.",
+                    severity="info",
+                )
+
+            # Step 2: Perform action based on second keypress
+            elif self.selected_tag and event.key in ["u", "r"]:
+                if event.key == "u":
+                    self.action_update_interval(self.selected_tag)
+                elif event.key == "r":
+                    self.action_remove_interval(self.selected_tag)
+                self.selected_tag = None  # Reset after action
         elif self.view == "help":
             if event.key in ["escape", "L"]:
                 self.action_show_list()
+
+    def action_update_interval(self, interval_id):
+        """Prompt the user for interval datetime."""
+        interval_fmt = ""
+        log_msg(f"{self.selected_chore = }, {interval_id = }")
+        interval_timedelta = self.controller.get_interval(interval_id)
+        log_msg(f"{interval_timedelta = }")
+        if not interval_timedelta:
+            self.notify("Could not obtain the current timestamp!", severity="warning")
+            return
+
+        def on_interval_close(interval_timedelta):
+            """Handle datetime input."""
+            log_msg(f"{self.selected_chore = }, {interval_timedelta = }")
+            if interval_timedelta == "_ESCAPED_":
+                log_msg("Escape detected! Cancelling completion.")
+                return  # Stop the process, do NOT record completion
+            if interval_timedelta is None:
+                return  # User canceled
+
+            # ✅ Ensure record_interval is called with all required arguments
+            log_msg(f"{interval_id = }, {interval_timedelta = }")
+            self.controller.update_interval(interval_id, interval_timedelta)
+
+            self.notify(
+                f'Updated interval for "{self.selected_name}"',
+                severity="success",
+            )
+
+            # Refresh the view
+            self.action_refresh_chore()
+
+        # ✅ Ensure the first screen passes its result to on_interval_close
+        self.push_screen(
+            IntervalInputScreen(
+                self.controller,
+                self.selected_chore,
+                self.selected_name,
+                interval_timedelta,
+                "Enter the new interval for the chore:",
+            ),
+            callback=on_interval_close,  # ✅ Correctly passing the callback
+        )
+
+    def action_remove_interval(self, interval_id: int | None = None):
+        """Request confirmation before deleting the interval, using 'y' or 'n'."""
+        if interval_id is None:
+            self.notify("No interval selected.", severity="warning")
+            return
+        interval_timestamp = self.controller.get_interval(interval_id)
+        if not interval_timestamp:
+            self.notify("Could not obtain the current timestamp!", severity="warning")
+            return
+
+        def confirm_delete():
+            log_msg(f"Deleting {interval_id = }, {interval_timestamp = }")
+            self.controller.remove_interval(interval_id)
+            self.notify(
+                f"Deleted interval {seconds_to_time(interval_timestamp)} from {self.selected_name}",
+                severity="warning",
+            )
+            self.action_refresh_chore()
+
+        self.push_screen(ConfirmScreen(self.selected_name, confirm_delete))
 
 
 if __name__ == "__main__":
