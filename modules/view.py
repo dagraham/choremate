@@ -66,6 +66,7 @@ HelpText = """\
     - **C**: Complete the chore.
     - **D**: Delete the chore.
     - **E**: Edit the chore.
+    - **a**-**z**: Select the interval corresponding to the tag and then press **u** to update or **r** to remove the interval.
     - **ESC**: Return to the list view.
 
 ### List View Details
@@ -95,7 +96,7 @@ Submitting "none" for the needed datetime can be used when the user can't be sur
 
 When a chore is completed, ChoreMate records the *interval* between this and the previous completion and then updates the value of the last completion. The updated last completion is displayed in the **last** column of the list view. The mean or average of the recorded intervals for the chore is then added to the last completion to get a forecast of when the next completion will likely be needed. This forecast is displayed in the **next** column of the list view. The chores in list view are sorted by **next**.
 
-How good is the **next** forecast? When three or more intervals have been recorded, ChoreMate separates the intervals into those that are *less* than the *mean interval* and those that are *more* than the *mean interval*. The average difference between an interval and the *mean interval* is then calculated for *each* of the two groups and labeled *mad_less* and *mad_more*, respectively. The column in the list view labeled **+/-** displays the range from `next - 2 × mad_less` to `next + 2 × mad_more`. The significance of this value is that at least 50% of the recorded intervals must lie within this range - a consquence of *Chebyshev's inequality*.
+How good is the **next** forecast? When three or more intervals have been recorded, ChoreMate separates the intervals into those that are *less* than the *mean interval* and those that are *more* than the *mean interval*. The average difference between an interval and the *mean interval* is then calculated for *each* of the two groups and labeled *mad_less* and *mad_more*, respectively. The column in the list view labeled **+/-** displays `2 × mad_less` when the current datetime is less than next and  `2 × mad_more` when it is more than next. The significance of these values is that at least 50% of the recorded intervals must lie within this range - a consquence of *Chebyshev's inequality*.
 
 The chores are diplayed in the list view in one of seven possible colors based on the current datetime.  The diagram below shows the critical datetimes for a chore with `|`'s. The one labeled `N` in the middle corresponds to the value in the *next* column. The others, moving from the far left to the right represent offsets from *next*:  `next - 4 × mad_less`, `next - 3 × mad_less`, and so forth ending with `next + 4 × mad_more`. The numbers below the line represent the Color number used for the different intervals. 
 
@@ -787,9 +788,9 @@ class TextualView(App):
         """Show the help screen."""
         self.view = "help"
         log_msg(f"{self.view = }")
-        width = self.app.size.width
-        title = f"{HelpTitle:^{width}}"
-        title_fmt = f"[bold][{TITLE_COLOR}]{title}[/{TITLE_COLOR}][/bold]"
+        # width = self.app.size.width
+        # title = f"{HelpTitle:^{width}}"
+        title_fmt = f"[bold][{TITLE_COLOR}]{HelpTitle}[/{TITLE_COLOR}][/bold]"
         self.push_screen(DetailsScreen([title_fmt, *HelpText], True))
 
     def action_clear_info(self):
@@ -837,14 +838,14 @@ class TextualView(App):
                 self.controller.record_completion(
                     self.selected_chore, completion_datetime, needed_datetime
                 )
-
+                self.action_update_list()
                 self.notify(
                     f'Recorded completion for "{self.selected_name}"',
                     severity="success",
                 )
 
                 # Refresh the view
-                self.action_show_chore(self.selected_tag)
+                self.action_show_chore(self.selected_chore)
 
             # ✅ Make sure the second screen passes its result to on_needed_close
             if self.last_completion:
