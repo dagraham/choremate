@@ -679,31 +679,34 @@ class TextualView(App):
         self.selected_name = None
         self.selected_tag = None
         self.timestamp = None
+        self.update_timer = None
         self.details = None
         self.full_screen_list = None  # Store the FullScreenList instance
 
     def on_mount(self):
         """Wait until the next full minute starts, then set an interval of 60s."""
         self.action_update_list()  # Initial update
-        self.action_show_list()  # Initial update
+        self.action_show_list()  # Start with list view
+        self.update_timer = self.set_interval(1, self.maybe_update)
 
-        # Calculate the delay until the next full minute
-        seconds_until_next_minute = 60 - datetime.now().second
-        log_msg(f"Seconds until next minute: {seconds_until_next_minute}")
-        self.update_timer = self.set_interval(
-            seconds_until_next_minute, self.start_update_timer
-        )
+    def maybe_update(self):
+        """Update the list if the current time is a full minute."""
+        now = datetime.now()
+        if now.second == 0:
+            self.action_update_list(now)
 
-    def start_update_timer(self):
-        """Start the update timer to trigger action_show_list at one minute intervals."""
-        log_msg("Starting update timer.")
-        self.action_update_list()  # Initial update
-        # self.action_show_list()  # Initial update
-        if self.update_timer:
-            self.update_timer.stop()
-        self.update_timer = self.set_interval(60.0, self.action_update_list)
+    # def refresh_update_timer(self, seconds: float = 60.000):
+    #     """Start the update timer to trigger action_show_list at one minute intervals."""
+    #     log_msg("Starting update timer.")
+    #     self.action_update_list()  # Initial update
+    #     # self.action_show_list()  # Initial update
+    #     if self.update_timer:
+    #         self.update_timer.stop()
+    #     self.update_timer = self.set_interval(
+    #         seconds, self.refresh_update_timer, repeat=1
+    #     )
 
-    def action_update_list(self):
+    def action_update_list(self, now: datetime = datetime.now()):
         """Show the list of chores using FullScreenList."""
         log_msg(f"{self.view = }")
         chores = self.controller.show_chores_as_list(
@@ -712,7 +715,8 @@ class TextualView(App):
         num_chores = len(chores) - 1
         self.afill = 1 if num_chores < 26 else 2 if num_chores < 676 else 3
         self.details = chores  # Title + chore data
-        self.timestamp = datetime.now().strftime("%a %H:%M")  # Format time
+
+        self.timestamp = now.strftime("%a %H:%M")  # Format time
         log_msg(f"{self.view = }, {self.timestamp = }")
         if self.view == "list":
             self.action_show_list()
@@ -756,6 +760,7 @@ class TextualView(App):
                 self.notify(
                     f"Chore '{chore_name}' added successfully!", severity="success"
                 )
+                self.action_update_list()
                 self.action_show_list()  # Refresh the list view
             else:
                 self.notify("Chore addition cancelled.", severity="warning")
